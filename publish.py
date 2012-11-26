@@ -17,7 +17,7 @@ else:
 conf = config.load_config()[spec]
 
 print 'parsing'
-os.chdir(config.rel_to_me(conf.path, __file__))
+os.chdir(config.rel_to_me(conf["path"], __file__))
 source = open('source')
 succint = StringIO()
 bs.main(source, succint)
@@ -59,8 +59,8 @@ opts = {
   'w3c_compat_xref_elements': False,
   'w3c_compat_xref_normalization': False,
 }
-if conf.anolis:
-    opts.update(conf.anolis)
+if "anolis" in conf:
+    opts.update(conf["anolis"])
 
 print 'indexing'
 filtered.seek(0)
@@ -79,7 +79,7 @@ for dt in tree.findall('//dt/dt'):
   else:
     dt.getparent().remove(dt)
 
-spec_dir = os.path.join(config.rel_to_me(conf.path, __file__), "output/%s" % spec)
+spec_dir = os.path.join(config.rel_to_me(conf["path"], __file__), "output/%s" % spec)
 try:
   os.makedirs(spec_dir)
 except:
@@ -117,7 +117,7 @@ else:
   spec_splitter.w3c = True
   spec_splitter.main("%s/single-page.html" % spec_dir, spec_dir)
 
-  entities = open(os.path.join(config.rel_to_me(conf.path, __file__), "boilerplate/entities.inc"))
+  entities = open(os.path.join(config.rel_to_me(conf["path"], __file__), "boilerplate/entities.inc"))
   json = open("%s/entities.json" % spec_dir, 'w')
   from entity_processor_json import entity_processor_json
   entity_processor_json(entities, json)

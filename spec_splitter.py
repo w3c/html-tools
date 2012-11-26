@@ -1,5 +1,4 @@
-import sys
-import re
+import sys, re, os
 from lxml import etree # requires lxml 2.0
 from copy import deepcopy
 

@@ -2,9 +2,11 @@ import sys, config
 
 def main(stdin, stdout, select='w3c-html'):
   import os, re
-  conf = config.load_config()
-  os.chdir(config.rel_to_me(conf.path, __file__))
-  bp_dir = os.path.join(config.rel_to_me(conf.path, __file__), "boilerplate")
+  spec = select
+  if spec == "w3c-html": spec = "html"
+  conf = config.load_config()[spec]
+  os.chdir(config.rel_to_me(conf["path"], __file__))
+  bp_dir = os.path.join(config.rel_to_me(conf["path"], __file__), "boilerplate")
 
   # select document
   if select == '2dcontext':
