@@ -42,4 +42,14 @@ or as:
 
     make [html|2dcontext|microdata]
 
+The `make` variant runs exactly the same thing, but checks to see if the source has changed
+since the last generation. This can be faster if you're working on the spec, but be warned
+that it does not check if _other_ dependencies may have changed too (e.g. the boilerplate)
+and so can trip you.
 
+TODO
+====
+
+* rewrite the microdata section properly
+* splitting is wrong
+* 404 proper styling

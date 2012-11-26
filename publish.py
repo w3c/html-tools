@@ -123,3 +123,19 @@ else:
   entity_processor_json(entities, json)
   entities.close()
   json.close()
+
+# copying dependencies
+def copy_dependencies (targets):
+    import types
+    if not isinstance(targets, types.ListType): targets = [targets]
+    for target in targets:
+        os.system("cp -R %s/%s %s" % (config.rel_to_me(conf["path"], __file__), target, spec_dir))
+
+print "copying"
+if spec == "html":
+    copy_dependencies(["images", "fonts", "404/*"])
+elif spec == "2dcontext":
+    copy_dependencies(["images", "fonts"])
+elif spec == "microdata":
+    copy_dependencies("fonts")
+
