@@ -79,6 +79,22 @@ for dt in tree.findall('//dt/dt'):
   else:
     dt.getparent().remove(dt)
 
+if spec == "microdata":
+    import lxml
+    # get the h3 for the misplaced section (it has no container)
+    section = tree.xpath("//h3[@id = 'htmlpropertiescollection']")[0]
+    # the get all of its following siblings that have the h2 for the next section as 
+    # a following sibling themselves. Yeah, XPath doesn't suck.
+    section_content = section.xpath("following-sibling::*[following-sibling::h2[@id='introduction']]")
+    target = tree.xpath("//h2[@id = 'converting-html-to-other-formats']")[0].getparent()
+    target.addprevious(section)
+    for el in section_content: target.addprevious(el)
+    section.xpath("span")[0].text = "6.1 "
+    # move the toc as well
+    link = tree.xpath("//ol[@class='toc']//a[@href='#htmlpropertiescollection']")[0]
+    link.xpath("span")[0].text = "6.1 "
+    tree.xpath("//ol[@class='toc']/li[a[@href='#microdata-dom-api']]")[0].append(link.getparent().getparent())
+
 spec_dir = os.path.join(config.rel_to_me(conf["path"], __file__), "output/%s" % spec)
 try:
   os.makedirs(spec_dir)
