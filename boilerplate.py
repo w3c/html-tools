@@ -1,16 +1,18 @@
-import sys
+import sys, config
 
 def main(stdin, stdout, select='w3c-html'):
   import os, re
-  os.chdir(os.path.abspath(os.path.join(__file__, '../..')))
+  conf = config.load_config()
+  os.chdir(config.rel_to_me(conf.path, __file__))
+  bp_dir = os.path.join(config.rel_to_me(conf.path, __file__), "boilerplate")
 
   # select document
   if select == '2dcontext':
-    header = open("boilerplate/header-w3c-html-2dcontext").read()
+    header = open(os.path.join(bp_dir, "header-w3c-html-2dcontext")).read()
   elif select == 'microdata':
-    header = open("boilerplate/header-w3c-html-microdata").read()
+    header = open(os.path.join(bp_dir, "header-w3c-html-microdata")).read()
   else:
-    header = open("boilerplate/header-w3c-html-core").read()
+    header = open(os.path.join(bp_dir, "header-w3c-html-core")).read()
 
   # remove instructions
   header = re.compile('<!-- .*? -->\n?', re.S).sub('', header)
@@ -25,8 +27,8 @@ def main(stdin, stdout, select='w3c-html'):
   # include nested boiler plate
   def boilerplate(match):
     name = match.group(1)
-    if os.path.exists("boilerplate/%s" % name):
-      content = open("boilerplate/%s" % name).read()
+    if os.path.exists(os.path.join(bp_dir, name)):
+      content = open(os.path.join(bp_dir, name)).read()
     else:
       content = match.group(0)
       sys.stderr.write("Missing file: %s\n" % name)

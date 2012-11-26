@@ -1,7 +1,7 @@
 import os, json
 
-def rel_to_me (f):
-    return os.path.join(os.path.dirname(__file__), f)
+def rel_to_me (f, origin=__file__):
+    return os.path.abspath(os.path.join(os.path.dirname(origin), f))
 
 def load_json (f):
     with open(f) as data: return json.loads(data.read())

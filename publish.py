@@ -1,5 +1,5 @@
 import os, sys
-import bs, boilerplate
+import config, bs, boilerplate
 from StringIO import StringIO
 from anolislib import generator, utils
 
@@ -14,8 +14,10 @@ else:
   sys.stderr.write("Usage: python %s [html|2dcontext|microdata]\n" % sys.argv[0])
   exit()
 
+conf = config.load_config()[spec]
+
 print 'parsing'
-os.chdir(os.path.abspath(os.path.join(__file__, '../..')))
+os.chdir(config.rel_to_me(conf.path, __file__))
 source = open('source')
 succint = StringIO()
 bs.main(source, succint)
@@ -57,6 +59,8 @@ opts = {
   'w3c_compat_xref_elements': False,
   'w3c_compat_xref_normalization': False,
 }
+if conf.anolis:
+    opts.update(conf.anolis)
 
 print 'indexing'
 filtered.seek(0)
@@ -75,19 +79,20 @@ for dt in tree.findall('//dt/dt'):
   else:
     dt.getparent().remove(dt)
 
+spec_dir = os.path.join(config.rel_to_me(conf.path, __file__), "output/%s" % spec)
 try:
-  os.makedirs('output/%s' % spec)
+  os.makedirs(spec_dir)
 except:
   pass
 
 if spec == 'html':
   from glob import glob
-  for name in glob('output/html/*.html'):
+  for name in glob("%s/*.html" % spec_dir):
     os.remove(name)
 
   output = StringIO()
 else:
-  output = open('output/%s/Overview.html' % spec, 'wb')
+  output = open("%s/Overview.html" % spec_dir, 'wb')
 
 generator.toFile(tree, output, **opts)
 
@@ -102,7 +107,7 @@ else:
     interface_index(output, index)
     value = value.replace("<!--INTERFACES-->\n", index.getvalue(), 1)
     index.close()
-  output = open('output/html/single-page.html', 'wb')
+  output = open("%s/single-page.html" % spec_dir, 'wb')
   output.write(value)
   output.close()
   value = ''
@@ -110,10 +115,10 @@ else:
   print 'splitting'
   import spec_splitter
   spec_splitter.w3c = True
-  spec_splitter.main('output/%s/single-page.html' % spec, 'output/%s' % spec)
+  spec_splitter.main("%s/single-page.html" % spec_dir, spec_dir)
 
-  entities = open('boilerplate/entities.inc')
-  json = open('output/html/entities.json', 'w')
+  entities = open(os.path.join(config.rel_to_me(conf.path, __file__), "boilerplate/entities.inc"))
+  json = open("%s/entities.json" % spec_dir, 'w')
   from entity_processor_json import entity_processor_json
   entity_processor_json(entities, json)
   entities.close()

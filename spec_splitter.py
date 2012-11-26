@@ -4,7 +4,6 @@ from lxml import etree # requires lxml 2.0
 from copy import deepcopy
 
 verbose = False
-absolute_uris = False
 w3c = False
 use_html5lib_parser = False
 use_html5lib_serialiser = True
@@ -16,10 +15,6 @@ def main(input, output):
       import html5lib.serializer
       import html5lib.treewalkers
 
-  # if w3c:
-  #     index_page = 'spec'
-  # else:
-  #     index_page = 'index'
   index_page = 'index'
 
   # The document is split on all <h2> elements, plus the following specific elements
@@ -130,16 +125,6 @@ def main(input, output):
     # get all the nodes from the index of terms (if any) and save for later
     index_of_terms = doc.xpath("//*[@class='index-of-terms']//dl")
 
-  # Absolutise some references, so the spec can be hosted elsewhere
-  if absolute_uris:
-      for a in ('href', 'src'):
-          for t in ('link', 'script', 'img'):
-              for e in doc.findall('//%s[@%s]' % (t, a)):
-                  if e.get(a)[0] == '/':
-                      e.set(a, 'http://www.whatwg.org' + e.get(a))
-                  else:
-                      e.set(a, 'http://www.whatwg.org/specs/web-apps/current-work/' + e.get(a))
-
   # Extract the body from the source document
   original_body = doc.find('body')
 
@@ -147,7 +132,6 @@ def main(input, output):
   default_body = etree.Element('body')
   if original_body.get('class'): default_body.set('class', original_body.get('class'))
   default_body.set('onload', 'fixBrokenLink();')
-  #if original_body.get('onload'): default_body.set('onload', 'fixBrokenLink(); %s' % original_body.get('onload'))
   original_body.getparent().replace(original_body, default_body)
 
   # Extract the header, so we can reuse it in every page
@@ -168,13 +152,6 @@ def main(input, output):
                   extract_toc_items(items, c, depth+1)
   toc_items = []
   extract_toc_items(toc_items, original_body.find('.//ol[@class="toc"]'), 0)
-
-  # Prepare the link-fixup script
-  # if not w3c:
-  #     link_fixup_script = etree.XML('<script src="link-fixup.js"/>')
-  #     doc.find('head')[-1].tail = '\n  '
-  #     doc.find('head').append(link_fixup_script)
-  #     link_fixup_script.tail = '\n  '
 
   # Stuff for fixing up references:
 
@@ -291,10 +268,6 @@ def main(input, output):
 
       head = doc.find('head')
 
-      # if w3c:
-      #     nav = etree.Element('div') # HTML 4 compatibility
-      # else:
-      #     nav = etree.Element('nav')
       nav = etree.Element('nav')
       nav.set('class', 'prev_next')
       nav.text = '\n   '
@@ -365,6 +338,7 @@ def main(input, output):
   # Each term entry should be a <dl> with an id attribute whose value is an id of
   # a <dfn>, with the string "_index" appended to it.
   # For now, the subdirectory for the files is hardcoded here as "index-of-terms".
+    os.makedirs(os.path.join(output, "index-of-terms"))
     for term in index_of_terms:
     # the firstChild <dt> here is a name and link for the defining instance of
     # each index term; we don't need that in this context, so just remove it
@@ -373,7 +347,7 @@ def main(input, output):
         # we use the ID of the term as the base for the filename, minus the last six
         # characters ("_index")
         id = term.get("id")[:-6]
-        f = open('%s/%s' % ("index-of-terms", id+".html"), 'w')
+        f = open(os.path.join(output, "index-of-terms", id + ".html"), 'w')
         f.write(etree.tostring(term, pretty_print=True, method="html"))
 
   report_broken_refs()
@@ -382,7 +356,7 @@ def main(input, output):
 
   # Output all the pages
   for name, doc, title in pages:
-      f = open('%s/%s' % (output, get_page_filename(name)), 'w')
+      f = open(os.path.join(output, get_page_filename(name)), 'w')
   #    f.write("<!doctype html>\n")
       if use_html5lib_serialiser:
           tokens = html5lib.treewalkers.getTreeWalker('lxml')(doc)
@@ -415,9 +389,7 @@ if __name__ == '__main__':
   verbose = True
 
   for arg in sys.argv[1:]:
-      if arg == '--absolute':
-          absolute_uris = True
-      elif arg == '--w3c':
+      if arg == '--w3c':
           w3c = True
       elif arg == '-q' or arg == '--quiet':
           verbose = False
@@ -437,7 +409,6 @@ if __name__ == '__main__':
       print '(The directory "multipage" must already exist)'
       print
       print 'Options:'
-      print '  --absolute ............. convert relative URLs to absolute (e.g. for images)'
       print '  --w3c .................. use W3C variant instead of WHATWG'
       print '  --quiet ................ be less verbose in the output'
       print '  --html5lib-parser ...... use html5lib parser instead of lxml'
