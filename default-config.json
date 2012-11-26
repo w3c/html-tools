@@ -1,0 +1,17 @@
+{
+    "html": {
+        "path":     "../html"
+    ,   "branch":   "CR"
+    }
+,   "2dcontext":    {
+        "path": "../html"
+    ,   "branch":   "html5_canvas_CR"
+    }
+,   "microdata":    {
+        "path": "../html"
+    ,   "branch":   "CR"
+    }
+,   "polyglot":     {
+        "url":  "http://dev.w3.org/html5/html-xhtml-author-guide/html-xhtml-authoring-guide-ED-COPY.htm"
+    }
+}
