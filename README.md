@@ -14,9 +14,7 @@ Installation
 ============
 
 Just check it out wherever seems convenient to you, and it should work. Its
-one dependency is a recent version of Anolis
-
-XXX link?
+one dependency is a recent version of [Anolis](https://bitbucket.org/ms2ger/anolis/).
 
 Configuration
 =============
@@ -27,9 +25,11 @@ file and use it to override just the values you need. For instance, if you
 need your HTML draft to be in `/some/other/path` (the default assumes `../html`), just
 create this `local-config.json`:
 
-    {
-        "html": { "path": "/some/other/path" }
-    }
+```json
+{
+    "html": { "path": "/some/other/path" }
+}
+```
 
 Running
 =======
