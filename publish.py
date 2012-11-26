@@ -155,3 +155,10 @@ elif spec == "2dcontext":
 elif spec == "microdata":
     copy_dependencies("fonts")
 
+# fix the styling of the 404
+if spec == "html":
+    link = tree.xpath("//link[starts-with(@href, 'http://www.w3.org/StyleSheets/TR/')]")[0].get("href")
+    path = os.path.join(spec_dir, "404.html")
+    with open(path) as data: html404 = data.read()
+    html404 = html404.replace("http://www.w3.org/StyleSheets/TR/W3C-ED", link)
+    with open(path, "w") as data: data.write(html404)

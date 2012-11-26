@@ -50,6 +50,5 @@ and so can trip you.
 TODO
 ====
 
-* rewrite the microdata section properly
 * splitting is wrong
 * 404 proper styling
