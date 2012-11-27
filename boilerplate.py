@@ -9,14 +9,7 @@ def main(stdin, stdout, select='w3c-html'):
   bp_dir = os.path.join(config.rel_to_me(conf["path"], __file__), "boilerplate")
 
   # select document
-  if select == '2dcontext':
-    header = open(os.path.join(bp_dir, "header-w3c-html-2dcontext")).read()
-  elif select == 'microdata':
-    header = open(os.path.join(bp_dir, "header-w3c-html-microdata")).read()
-  elif select == 'srcset':
-    header = open(os.path.join(bp_dir, "header-w3c-html-srcset")).read()
-  else:
-    header = open(os.path.join(bp_dir, "header-w3c-html-core")).read()
+  header = open(os.path.join(bp_dir, conf["boilerplate"])).read()
 
   # remove instructions
   header = re.compile('<!-- .*? -->\n?', re.S).sub('', header)
