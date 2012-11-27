@@ -10,8 +10,10 @@ elif len(sys.argv)>1 and sys.argv[1] == 'microdata':
   select = spec = 'microdata'
 elif len(sys.argv)>1 and sys.argv[1] == '2dcontext':
   spec = select = '2dcontext'
+elif len(sys.argv)>1 and sys.argv[1] == 'srcset':
+  spec = select = 'srcset'
 else:
-  sys.stderr.write("Usage: python %s [html|2dcontext|microdata]\n" % sys.argv[0])
+  sys.stderr.write("Usage: python %s [html|2dcontext|microdata|srcset]\n" % sys.argv[0])
   exit()
 
 conf = config.load_config()[spec]

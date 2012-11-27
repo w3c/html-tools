@@ -14,4 +14,8 @@
 ,   "polyglot":     {
         "url":  "http://dev.w3.org/html5/html-xhtml-author-guide/html-xhtml-authoring-guide-ED-COPY.htm"
     }
+,   "srcset":    {
+        "path": "../html"
+    ,   "branch":   "w3c-srcset"
+    }
 }

@@ -13,6 +13,8 @@ def main(stdin, stdout, select='w3c-html'):
     header = open(os.path.join(bp_dir, "header-w3c-html-2dcontext")).read()
   elif select == 'microdata':
     header = open(os.path.join(bp_dir, "header-w3c-html-microdata")).read()
+  elif select == 'srcset':
+    header = open(os.path.join(bp_dir, "header-w3c-html-srcset")).read()
   else:
     header = open(os.path.join(bp_dir, "header-w3c-html-core")).read()
 
