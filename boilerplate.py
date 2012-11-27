@@ -105,13 +105,3 @@ def main(stdin, stdout, select='w3c-html'):
     content = re.compile('^<!--PUB-N-->', re.M).sub('', content)
 
   stdout.write(content)
-
-if __name__ == '__main__':
-  if len(sys.argv)>1 and sys.argv[1] == '2dcontext':
-    select = '2dcontext'
-  elif len(sys.argv)>1 and sys.argv[1] == 'microdata':
-    select = 'microdata'
-  else:
-    select = 'w3c-html'
-
-  main(sys.stdin, sys.stdout, select)
