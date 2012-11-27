@@ -3,20 +3,28 @@ import config, bs, boilerplate
 from StringIO import StringIO
 from anolislib import generator, utils
 
-if len(sys.argv)>1 and sys.argv[1] == 'html':
-  select = 'w3c-html'
-  spec = 'html'
-elif len(sys.argv)>1 and sys.argv[1] == 'microdata':
-  select = spec = 'microdata'
-elif len(sys.argv)>1 and sys.argv[1] == '2dcontext':
-  spec = select = '2dcontext'
-elif len(sys.argv)>1 and sys.argv[1] == 'srcset':
-  spec = select = 'srcset'
-else:
-  sys.stderr.write("Usage: python %s [html|2dcontext|microdata|srcset]\n" % sys.argv[0])
+def invoked_incorrectly():
+  specs = config.load_config().keys()
+  sys.stderr.write("Usage: python %s [%s]\n" % (sys.argv[0],'|'.join(specs)))
   exit()
 
-conf = config.load_config()[spec]
+if len(sys.argv) < 2:
+  invoked_incorrectly()
+
+spec = sys.argv[1]
+
+conf = None
+try:
+  conf = config.load_config()[spec]
+except KeyError:
+  invoked_incorrectly()
+
+if 'select' in conf:
+  select = conf['select']
+else:
+  select = spec
+
+print "spec: %s\nselect: %s\nboilerplate: %s" % (spec, select, conf['boilerplate'])
 
 print 'parsing'
 os.chdir(config.rel_to_me(conf["path"], __file__))
@@ -154,7 +162,7 @@ if spec == "html":
     copy_dependencies(["images", "fonts", "404/*"])
 elif spec == "2dcontext":
     copy_dependencies(["images", "fonts"])
-elif spec == "microdata":
+else:
     copy_dependencies("fonts")
 
 # fix the styling of the 404

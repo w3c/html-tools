@@ -3,6 +3,7 @@
         "path":     "../html"
     ,   "branch":   "CR"
     ,   "boilerplate": "header-w3c-html-core"
+    ,   "select": "w3c-html"
     }
 ,   "2dcontext":    {
         "path": "../html"
