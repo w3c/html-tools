@@ -7,8 +7,13 @@ w3c = False
 use_html5lib_parser = False
 use_html5lib_serialiser = True
 make_index_of_terms = False
+no_split_exceptions = False
+in_semantics = False
+in_semantics_seen_first = False
 
 def main(input, output):
+  global no_split_exceptions
+  if in_semantics: no_split_exceptions = True
   if use_html5lib_parser or use_html5lib_serialiser:
       import html5lib
       import html5lib.serializer
@@ -104,6 +109,7 @@ def main(input, output):
 
       'parsing', 'tokenization', 'tree-construction', 'the-end', 'named-character-references', # <-- syntax
   ]
+  if no_split_exceptions: split_exceptions = []
 
 
   if verbose: print "Parsing..."
@@ -210,12 +216,22 @@ def main(input, output):
   # Section/subsection pages:
 
   def should_split(e):
-      if e.tag == 'h2': return True
+      global in_semantics, in_semantics_seen_first
+      if e.get("id") == "semantics":
+          in_semantics = True
+          return True
+      if e.tag == 'h2':
+          in_semantics = False
+          return True
+      if e.tag == "h3" and in_semantics:
+          if in_semantics_seen_first: return True
+          in_semantics_seen_first = True
       if e.get('id') in split_exceptions: return True
       if e.tag == 'div' and e.get('class') == 'impl':
           c = e.getchildren()
           if len(c):
               if c[0].tag == 'h2': return True
+              if c[0].tag == "h3" and in_semantics: return True
               if c[0].get('id') in split_exceptions: return True
       return False
 

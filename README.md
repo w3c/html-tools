@@ -50,5 +50,5 @@ and so can trip you.
 TODO
 ====
 
-* splitting is wrong
 * add support for generating against a specific branch, or multiple branches
+* add a linter

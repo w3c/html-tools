@@ -141,6 +141,8 @@ else:
   print 'splitting'
   import spec_splitter
   spec_splitter.w3c = True
+  spec_splitter.no_split_exceptions = conf.get("no_split_exceptions", False)
+  spec_splitter.minimal_split_exceptions = conf.get("minimal_split_exceptions", False)
   spec_splitter.main("%s/single-page.html" % spec_dir, spec_dir)
 
   entities = open(os.path.join(config.rel_to_me(conf["path"], __file__), "boilerplate/entities.inc"))
