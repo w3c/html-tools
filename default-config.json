@@ -1,18 +1,18 @@
 {
     "html": {
         "path":     "../html"
-    ,   "branch":   "CR"
+    ,   "branches": ["CR", "master"]
     ,   "boilerplate": "header-w3c-html-core"
     ,   "select": "w3c-html"
     }
 ,   "2dcontext":    {
-        "path": "../html"
-    ,   "branch":   "html5_canvas_CR"
+        "path":     "../html"
+    ,   "branches": ["html5_canvas_CR", "html5_canvas"]
     ,   "boilerplate": "header-w3c-html-2dcontext"
     }
 ,   "microdata":    {
-        "path": "../html"
-    ,   "branch":   "CR"
+        "path":     "../html"
+    ,   "branches": ["CR", "master"]
     ,   "boilerplate": "header-w3c-html-microdata"
     }
 ,   "polyglot":     {
@@ -20,7 +20,7 @@
     }
 ,   "srcset":    {
         "path": "../html"
-    ,   "branch":   "w3c-srcset"
+    ,   "branches": ["w3c-srcset"]
     ,   "boilerplate": "header-w3c-html-srcset"
     }
 }
