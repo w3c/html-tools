@@ -52,3 +52,4 @@ TODO
 
 * add support for generating against a specific branch, or multiple branches
 * add a linter
+* generate the link-fixup.js data
