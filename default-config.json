@@ -1,7 +1,7 @@
 {
     "html": {
         "path":     "../html"
-    ,   "branches": ["CR", "master"]
+    ,   "branches": ["CR", "master", "FPWD51"]
     ,   "boilerplate": "header-w3c-html-core"
     ,   "select": "w3c-html"
     }

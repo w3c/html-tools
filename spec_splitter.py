@@ -19,7 +19,7 @@ def main(input, output):
       import html5lib.serializer
       import html5lib.treewalkers
 
-  index_page = 'index'
+  index_page = 'Overview'
 
   # The document is split on all <h2> elements, plus the following specific elements
   # (which were chosen to split any pages that were larger than about 100-200KB, and
