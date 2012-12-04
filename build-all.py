@@ -1,10 +1,12 @@
 
-import os
+import os, sys
 import config, publish
+
+BOLD_GREEN = "\033[01;32m"
+NO_COLOUR = "\033[0m"
 
 # TODO
 #   - generate an index page for all
-#   - iterate: git checkout, stop on error, publish
 
 def main(spec):
     conf = config.load_config()
@@ -16,11 +18,15 @@ def main(spec):
 
 def build_spec(spec, conf):
     branches = conf.get("branches", ["master"])
+    if (conf.get("url", False)): return # we'll handle those later
+    os.chdir(conf["path"])
+    cur_branch = os.popen("git rev-parse --abbrev-ref HEAD").read()
     for branch in branches:
         outdir = os.path.join(conf["output"], spec, branch)
-        print "Processing branch %s of %s (%s)" % (branch, spec, outdir)
-        # XXX do the git magic here
+        print BOLD_GREEN + "Processing branch %s of %s (%s)" % (branch, spec, outdir) + NO_COLOUR
+        os.system("git checkout %s" % branch)
         publish.main(spec, outdir)
+    os.system("git checkout %s" % cur_branch)
 
 if __name__ == '__main__':
     try:
