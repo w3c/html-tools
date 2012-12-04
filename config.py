@@ -17,6 +17,13 @@ def load_config ():
                 config[k].update(local_config[k])
             else:
                 config[k] = local_config[k]
+    for spec in config:
+        if config[spec].get("url", False): continue
+        if not os.path.isabs(config[spec]["path"]): config[spec]["path"] = rel_to_me(config[spec]["path"], __file__)
+        if config[spec].get("output", False):
+            if not os.path.isabs(config[spec]["output"]): config[spec]["output"] = rel_to_me(config[spec]["output"], __file__)
+        else:
+            config[spec]["output"] = os.path.join(config[spec]["path"], "output")
     return config
 
 if __name__ == '__main__':

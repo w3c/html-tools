@@ -53,4 +53,3 @@ TODO
 * make output directory configurable
 * add support for generating against a specific branch, or multiple branches
 * add a linter
-* use Overview.html as output name

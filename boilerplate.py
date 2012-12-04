@@ -5,8 +5,8 @@ def main(stdin, stdout, select='w3c-html'):
   spec = select
   if spec == "w3c-html": spec = "html"
   conf = config.load_config()[spec]
-  os.chdir(config.rel_to_me(conf["path"], __file__))
-  bp_dir = os.path.join(config.rel_to_me(conf["path"], __file__), "boilerplate")
+  os.chdir(conf["path"])
+  bp_dir = os.path.join(conf["path"], "boilerplate")
 
   # select document
   header = open(os.path.join(bp_dir, conf["boilerplate"])).read()
