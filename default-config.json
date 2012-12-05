@@ -4,23 +4,28 @@
     ,   "branches": ["CR", "master", "FPWD51"]
     ,   "boilerplate": "header-w3c-html-core"
     ,   "select": "w3c-html"
+    ,   "description":  "HTML Core"
     }
 ,   "2dcontext":    {
         "path":     "../html"
-    ,   "branches": ["html5_canvas_CR", "html5_canvas"]
+    ,   "branches": ["html5_canvas_CR", "html5_canvas", "FPWD51"]
     ,   "boilerplate": "header-w3c-html-2dcontext"
+    ,   "description":  "Canvas 2D Context"
     }
 ,   "microdata":    {
         "path":     "../html"
     ,   "branches": ["CR", "master"]
     ,   "boilerplate": "header-w3c-html-microdata"
+    ,   "description":  "Microdata"
     }
 ,   "polyglot":     {
         "url":  "http://dev.w3.org/html5/html-xhtml-author-guide/html-xhtml-authoring-guide-ED-COPY.htm"
+    ,   "description":  "Polyglot"
     }
 ,   "srcset":    {
         "path": "../html"
     ,   "branches": ["w3c-srcset"]
     ,   "boilerplate": "header-w3c-html-srcset"
+    ,   "description":  "The srcset attribute"
     }
 }

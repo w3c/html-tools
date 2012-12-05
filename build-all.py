@@ -8,13 +8,12 @@ NO_COLOUR = "\033[0m"
 # TODO
 #   - generate an index page for all
 
-def main(spec):
+def main(index_path):
     conf = config.load_config()
-    if spec:
-        build_spec(spec, conf[spec])
-    else:
-        for s in conf:
-            build_spec(s, conf[s])
+    if index_path:
+        make_index(conf, index_path)
+    for s in conf:
+        build_spec(s, conf[s])
 
 def build_spec(spec, conf):
     branches = conf.get("branches", ["master"])
@@ -28,9 +27,38 @@ def build_spec(spec, conf):
         publish.main(spec, outdir)
     os.system("git checkout %s" % cur_branch)
 
+def make_index(conf, index_path):
+    html = """
+    <!DOCTYPE html>
+    <html lang='en'>
+      <head>
+        <meta charset='utf-8'>
+        <title>HTML WG</title>
+        <link rel='stylesheet' href='http://htmlwg.org/css/htmlwg.css'>
+      </head>
+      <body>
+        <h1>
+          <a href="http://w3.org/"><img src="http://www.w3.org/Icons/WWW/w3c_home_nb" alt="W3C"></a>
+          HTML WG Drafts
+        </h1>
+        %s
+      </body>
+    </html>
+    """
+    output = ""
+    for spec in conf:
+        if conf[spec].get("url", False): continue
+        branches = conf[spec].get("branches", ["master"])
+        output += "<section><h2>%s</h2><ul>" % conf[spec]["description"]
+        for branch in branches:
+            output += "<li><a href='%s/%s/Overview.html'>%s</a></li>" % (spec, branch, branch)
+        output += "</ul></section>"
+    with open(index_path, "w") as data: data.write(html % output)
+    
+
 if __name__ == '__main__':
     try:
-        spec = sys.argv[1]
+        index_path = sys.argv[1]
     except IndexError:
-        spec = None
-    main(spec)
+        index_path = None
+    main(index_path)
