@@ -42,6 +42,7 @@ def make_index(conf, index_path):
           HTML WG Drafts
         </h1>
         %s
+        <footer><p>Last generated: %s.</p></footer>
       </body>
     </html>
     """
@@ -53,7 +54,7 @@ def make_index(conf, index_path):
         for branch in branches:
             output += "<li><a href='%s/%s/Overview.html'>%s</a></li>" % (spec, branch, branch)
         output += "</ul></section>"
-    with open(index_path, "w") as data: data.write(html % output)
+    with open(index_path, "w") as data: data.write(html % (output, str(datetime.datetime.today())))
     
 
 if __name__ == '__main__':
