@@ -1,5 +1,5 @@
 
-import os, sys
+import os, sys, datetime
 import config, publish
 
 BOLD_GREEN = "\033[01;32m"
@@ -55,6 +55,7 @@ def make_index(conf, index_path):
             output += "<li><a href='%s/%s/Overview.html'>%s</a></li>" % (spec, branch, branch)
         output += "</ul></section>"
     with open(index_path, "w") as data: data.write(html % (output, str(datetime.datetime.today())))
+    exit()
     
 
 if __name__ == '__main__':
