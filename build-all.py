@@ -1,4 +1,5 @@
 
+from email.Utils import formatdate
 import os, sys, datetime
 import config, publish
 
@@ -9,6 +10,7 @@ NO_COLOUR = "\033[0m"
 #   - generate an index page for all
 
 def main(index_path):
+    print formatdate()
     conf = config.load_config()
     if index_path:
         make_index(conf, index_path)
@@ -54,8 +56,7 @@ def make_index(conf, index_path):
         for branch in branches:
             output += "<li><a href='%s/%s/Overview.html'>%s</a></li>" % (spec, branch, branch)
         output += "</ul></section>"
-    with open(index_path, "w") as data: data.write(html % (output, str(datetime.datetime.today())))
-    exit()
+    with open(index_path, "w") as data: data.write(html % (output, formatdate()))
     
 
 if __name__ == '__main__':
