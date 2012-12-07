@@ -54,10 +54,35 @@ def make_index(conf, index_path):
         branches = conf[spec].get("branches", ["master"])
         output += "<section><h2>%s</h2><ul>" % conf[spec]["description"]
         for branch in branches:
-            output += "<li><a href='%s/%s/Overview.html'>%s</a></li>" % (spec, branch, branch)
+            output += "<li><a href='%s/%s/Overview.html'>%s</a></li>" % (spec, branch, branch_title(spec, branch))
         output += "</ul></section>"
     with open(index_path, "w") as data: data.write(html % (output, formatdate()))
-    
+    print "Generated index"
+
+titles = {
+    "html":   {
+        "CR":       "Candidate Recommendation"
+    ,   "FPWD51":   "First Public Working Draft (5.1)"
+    ,   "master":   "HTML Nightly"
+    }
+,   "2dcontext":    {
+        "html5_canvas_CR":  "Candidate Recommendation"
+    ,   "html5_canvas":     "Canvas Nightly"
+    ,   "FPWD51":           "First Public Working Draft (Level 2)"
+    }
+,   "srcset":   {
+        "w3c-srcset":   "Extension Spec"
+    }
+,   "microdata":   {
+        "CR":       "Candidate Recommendation"
+    ,   "master":   "Microdata Nightly"
+    }
+}
+def branch_title(spec, branch):
+    if spec in titles and branch in titles[spec]:
+        return "<strong>%s</strong> (%s)" % (titles[spec][branch], branch)
+    else:
+        return branch
 
 if __name__ == '__main__':
     try:
