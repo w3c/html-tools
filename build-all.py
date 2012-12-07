@@ -56,6 +56,8 @@ def make_index(conf, index_path):
         for branch in branches:
             output += "<li><a href='%s/%s/Overview.html'>%s</a></li>" % (spec, branch, branch_title(spec, branch))
         output += "</ul></section>"
+    if not os.path.exists(os.path.dirname(index_path)):
+        os.makedirs(os.path.dirname(index_path))
     with open(index_path, "w") as data: data.write(html % (output, formatdate()))
     print "Generated index"
 
