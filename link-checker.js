@@ -7,14 +7,11 @@ var fs  = require("fs")
 ;
 
 // where are we?
-var target = process.argv[2] || "html"
-,   hbDir
-;
-if (/^(html|2d|microdata)$/.test(target)) {
-    hbDir = pth.join(pth.join(__dirname, ".."), target === "html" ? "heartbeat" : "heartbeat-2d");
-}
-else {
-    hbDir = target;
+var hbDir = process.argv[2];
+
+if (!hbDir) {
+    console.log("Usage: link-checker.js path/to/spec/directory");
+    process.exit(1);
 }
 
 // excludes
