@@ -11,7 +11,6 @@ no_split_exceptions = False
 minimal_split_exceptions = False
 in_semantics = False
 in_semantics_seen_first = False
-seen_embedded = False
 
 def main(input, output):
   global no_split_exceptions
@@ -217,23 +216,12 @@ def main(input, output):
   # Section/subsection pages:
 
   def should_split(e):
-      global in_semantics, in_semantics_seen_first, seen_embedded
-      
-      if e.get("id") == "embedded-content-0":
-          print "embedded-content-0"
-          seen_embedded = True
-      if e.get("id") == "tabular-data":
-          print "tabular-data"
-      if seen_embedded:
-          if e.tag == "h2" or e.tag == "h3" or e.tag == "h4" or e.tag == "h5" or e.tag == "h6":
-              print "HTAG: %s" % e.get("id")
+      global in_semantics, in_semantics_seen_first
       
       if e.get("id") == "semantics":
           in_semantics = True
-          print "Is in_semantics at %s" % e.get("id")
           return True
       if e.tag == 'h2':
-          if in_semantics: print "Toggled in_semantics off at %s" % e.get("id")
           in_semantics = False
           return True
       if e.tag == "h3" and in_semantics and minimal_split_exceptions:
