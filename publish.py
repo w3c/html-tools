@@ -104,6 +104,11 @@ def main(spec, spec_dir):
         link.xpath("span")[0].text = "6.1 "
         tree.xpath("//ol[@class='toc']/li[a[@href='#microdata-dom-api']]")[0].append(link.getparent().getparent())
 
+    if spec == "srcset":
+        reflect_the_content_attribute = tree.findall("//div[@class='impl']")[1]
+        target = tree.find("//div[@class='note']")
+        target.addprevious(reflect_the_content_attribute)
+
     try:
       os.makedirs(spec_dir)
     except:
