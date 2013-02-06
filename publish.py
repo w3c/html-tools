@@ -105,9 +105,25 @@ def main(spec, spec_dir):
         tree.xpath("//ol[@class='toc']/li[a[@href='#microdata-dom-api']]")[0].append(link.getparent().getparent())
 
     if spec == "srcset":
+        # In the WHATWG spec, srcset="" is simply an aspect of
+        # HTMLImageElement and not a separate feature. In order to keep
+        # the HTML WG's srcset="" spec organized, we have to move some
+        # things around in the final document.
+
+        # Move "The srcset IDL attribute must reflect..."
         reflect_the_content_attribute = tree.findall("//div[@class='impl']")[1]
         target = tree.find("//div[@class='note']")
         target.addprevious(reflect_the_content_attribute)
+
+        # Move "The IDL attribute complete must return true..."
+        note_about_complete = tree.findall("//p[@class='note']")[5]
+        p_otherwise = note_about_complete.xpath("preceding-sibling::p[position()=1]")[0]
+        ul_conditions = p_otherwise.xpath("preceding-sibling::ul[position()=1]")[0]
+        p_start = ul_conditions.xpath("preceding-sibling::p[position()=1]")[0]
+        target.addnext(note_about_complete)
+        target.addnext(p_otherwise)
+        target.addnext(ul_conditions)
+        target.addnext(p_start)
 
     try:
       os.makedirs(spec_dir)
