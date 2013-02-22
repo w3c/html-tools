@@ -23,6 +23,9 @@
 
 (autoload 'format-spec "format-spec")
 (autoload 'format-spec-make "format-spec")
+(autoload 'json-read-file "json")
+
+;;; Bugzilla
 
 (defvar specedit-boilerplate
   "EDITOR'S RESPONSE: This is an Editor's Response to your comment. If you are
@@ -57,6 +60,8 @@ Rationale: %r")
     ?r rationale))))
 
 
+
+;;; Spec editing
 
 (defvar specedit-preprocessor-keywords
   '("ACKS"
@@ -194,8 +199,6 @@ Helpful for when there are lots of START and END directives nearby.")
   (set (make-local-variable 'font-lock-defaults)
        '(specedit-font-lock-keywords t)))
 
-
-
 (defun specedit-specs-at-point (p)
   "Displays which specs the character at point will appear in."
   (interactive "d")
@@ -246,6 +249,30 @@ Helpful for when there are lots of START and END directives nearby.")
     (when frob-self
       (insert (format "<!--END %s-->" spec)))
     (insert "\n")))
+
+
+
+;;; Spec building
+
+(defconst specedit-config-file
+  (expand-file-name "default-config.json"
+                    (file-name-directory (locate-library "specedit")))
+  "The file that contains our publish.py configuration.")
+
+(defconst specedit-config
+  (json-read-file specedit-config-file)
+  "The configuration we feed into publish.py.")
+
+(defvar specedit-specs
+  (mapcar (lambda (entry)
+            (symbol-name (car entry)))
+          specedit-config)
+  "A list of strings naming each of our deliverables.")
+
+(defun specedit-publish (spec)
+  "Wrapper around `compile' for Anolis."
+  (interactive (list (completing-read "Spec: " specedit-specs)))
+  (compile (format "python ../tools/publish.py %s" spec)))
 
 (provide 'specedit)
 ;;; specedit.el ends here
