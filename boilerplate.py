@@ -45,9 +45,6 @@ def main(stdin, stdout, select='w3c-html'):
   content =  header + source
 
   def adjust_headers(text, delta, pos, endpos=None):
-    print "\tadjusting headers by %d from %d to %s" % (delta,
-      pos, endpos if endpos is not None else "EOF")
-
     def adjust_header(match):
       slash = match.group(1)
       n = int(match.group(2)) - delta

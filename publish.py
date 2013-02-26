@@ -20,9 +20,13 @@ def main(spec, spec_dir):
     else:
         select = spec
 
-    print "spec: %s\nselect: %s\nboilerplate: %s" % (spec, select, conf['boilerplate'])
-
-    if not spec_dir: spec_dir = os.path.join(conf["output"], spec)
+    try:
+        if not spec_dir:
+            spec_dir = os.path.join(conf["output"], spec)
+    except KeyError:
+        sys.stderr.write("error: Must specify output directory for %s! \
+Check default-config.json.\n" % spec)
+        exit()
 
     print 'parsing'
     os.chdir(conf["path"])
@@ -32,7 +36,12 @@ def main(spec, spec_dir):
 
     succint.seek(0)
     filtered = StringIO()
-    boilerplate.main(succint, filtered, select)
+    try:
+        boilerplate.main(succint, filtered, select)
+    except IOError:
+        sys.stderr.write("error: Problem loading boilerplate for %s. \
+Are you on the correct branch?\n" % spec)
+        exit()
     succint.close()
 
     # See http://hg.gsnedders.com/anolis/file/tip/anolis
@@ -88,6 +97,7 @@ def main(spec, spec_dir):
             dt.getparent().remove(dt)
 
     if spec == "microdata":
+        print 'munging'
         import lxml
         # get the h3 for the misplaced section (it has no container)
         section = tree.xpath("//h3[@id = 'htmlpropertiescollection']")[0]
@@ -104,6 +114,7 @@ def main(spec, spec_dir):
         tree.xpath("//ol[@class='toc']/li[a[@href='#microdata-dom-api']]")[0].append(link.getparent().getparent())
 
     if spec == "srcset":
+        print 'munging'
         # In the WHATWG spec, srcset="" is simply an aspect of
         # HTMLImageElement and not a separate feature. In order to keep
         # the HTML WG's srcset="" spec organized, we have to move some
@@ -130,6 +141,7 @@ def main(spec, spec_dir):
         pass
 
     if spec == 'html':
+        print 'cleaning'
         from glob import glob
         for name in glob("%s/*.html" % spec_dir):
             os.remove(name)
@@ -145,6 +157,7 @@ def main(spec, spec_dir):
     else:
         value = output.getvalue()
         if "<!--INTERFACES-->\n" in value:
+            print 'interfaces'
             from interface_index import interface_index
             output.seek(0)
             index = StringIO()
@@ -163,6 +176,7 @@ def main(spec, spec_dir):
         spec_splitter.minimal_split_exceptions = conf.get("minimal_split_exceptions", False)
         spec_splitter.main("%s/single-page.html" % spec_dir, spec_dir)
 
+        print 'entities'
         entities = open(os.path.join(conf["path"], "boilerplate/entities.inc"))
         json = open("%s/entities.json" % spec_dir, 'w')
         from entity_processor_json import entity_processor_json
