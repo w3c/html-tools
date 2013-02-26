@@ -4,22 +4,21 @@ from StringIO import StringIO
 from anolislib import generator, utils
 
 def invoked_incorrectly():
-  specs = config.load_config().keys()
-  sys.stderr.write("Usage: python %s [%s]\n" % (sys.argv[0],'|'.join(specs)))
-  exit()
-
+    specs = config.load_config().keys()
+    sys.stderr.write("Usage: python %s [%s]\n" % (sys.argv[0],'|'.join(specs)))
+    exit()
 
 def main(spec, spec_dir):
     conf = None
     try:
-      conf = config.load_config()[spec]
+        conf = config.load_config()[spec]
     except KeyError:
-      invoked_incorrectly()
+        invoked_incorrectly()
 
     if 'select' in conf:
-      select = conf['select']
+        select = conf['select']
     else:
-      select = spec
+        select = spec
 
     print "spec: %s\nselect: %s\nboilerplate: %s" % (spec, select, conf['boilerplate'])
 
@@ -78,15 +77,15 @@ def main(spec, spec_dir):
 
     # fixup nested dd's and dt's produced by lxml
     for dd in tree.findall('//dd/dd'):
-      if list(dd) or dd.text.strip():
-        dd.getparent().addnext(dd)
-      else:
-        dd.getparent().remove(dd)
+        if list(dd) or dd.text.strip():
+            dd.getparent().addnext(dd)
+        else:
+            dd.getparent().remove(dd)
     for dt in tree.findall('//dt/dt'):
-      if list(dt) or dt.text.strip():
-        dt.getparent().addnext(dt)
-      else:
-        dt.getparent().remove(dt)
+        if list(dt) or dt.text.strip():
+            dt.getparent().addnext(dt)
+        else:
+            dt.getparent().remove(dt)
 
     if spec == "microdata":
         import lxml
@@ -126,50 +125,50 @@ def main(spec, spec_dir):
         target.addnext(p_start)
 
     try:
-      os.makedirs(spec_dir)
+        os.makedirs(spec_dir)
     except:
-      pass
+        pass
 
     if spec == 'html':
-      from glob import glob
-      for name in glob("%s/*.html" % spec_dir):
-        os.remove(name)
+        from glob import glob
+        for name in glob("%s/*.html" % spec_dir):
+            os.remove(name)
 
-      output = StringIO()
+        output = StringIO()
     else:
-      output = open("%s/Overview.html" % spec_dir, 'wb')
+        output = open("%s/Overview.html" % spec_dir, 'wb')
 
     generator.toFile(tree, output, **opts)
 
     if spec != 'html':
-      output.close()
+        output.close()
     else:
-      value = output.getvalue()
-      if "<!--INTERFACES-->\n" in value:
-        from interface_index import interface_index
-        output.seek(0)
-        index = StringIO()
-        interface_index(output, index)
-        value = value.replace("<!--INTERFACES-->\n", index.getvalue(), 1)
-        index.close()
-      output = open("%s/single-page.html" % spec_dir, 'wb')
-      output.write(value)
-      output.close()
-      value = ''
+        value = output.getvalue()
+        if "<!--INTERFACES-->\n" in value:
+            from interface_index import interface_index
+            output.seek(0)
+            index = StringIO()
+            interface_index(output, index)
+            value = value.replace("<!--INTERFACES-->\n", index.getvalue(), 1)
+            index.close()
+        output = open("%s/single-page.html" % spec_dir, 'wb')
+        output.write(value)
+        output.close()
+        value = ''
 
-      print 'splitting'
-      import spec_splitter
-      spec_splitter.w3c = True
-      spec_splitter.no_split_exceptions = conf.get("no_split_exceptions", False)
-      spec_splitter.minimal_split_exceptions = conf.get("minimal_split_exceptions", False)
-      spec_splitter.main("%s/single-page.html" % spec_dir, spec_dir)
+        print 'splitting'
+        import spec_splitter
+        spec_splitter.w3c = True
+        spec_splitter.no_split_exceptions = conf.get("no_split_exceptions", False)
+        spec_splitter.minimal_split_exceptions = conf.get("minimal_split_exceptions", False)
+        spec_splitter.main("%s/single-page.html" % spec_dir, spec_dir)
 
-      entities = open(os.path.join(conf["path"], "boilerplate/entities.inc"))
-      json = open("%s/entities.json" % spec_dir, 'w')
-      from entity_processor_json import entity_processor_json
-      entity_processor_json(entities, json)
-      entities.close()
-      json.close()
+        entities = open(os.path.join(conf["path"], "boilerplate/entities.inc"))
+        json = open("%s/entities.json" % spec_dir, 'w')
+        from entity_processor_json import entity_processor_json
+        entity_processor_json(entities, json)
+        entities.close()
+        json.close()
 
     # copying dependencies
     def copy_dependencies (targets):
@@ -197,7 +196,7 @@ def main(spec, spec_dir):
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-      invoked_incorrectly()
+        invoked_incorrectly()
     spec = sys.argv[1]
     try:
         spec_dir = sys.argv[2]
