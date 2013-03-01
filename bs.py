@@ -19,7 +19,7 @@ def main(stdin, stdout):
   uppercase_ref = '<a href="#uppercase-ascii-letters">uppercase ASCII letters</a>'
   lowercase_ref = '<a href="#lowercase-ascii-letters">lowercase ASCII letters</a>'
   digits_ref = '<a href="#ascii-digits">ASCII digits</a>'
-  unicode_char =  re.compile('(U\+[A-F0-9]{4})\s[A-Z\s-]+(\scharacter(s)?)?\s\((.{1,3})\)')
+  unicode_char =  re.compile('(U\+[A-F0-9]{4})\s[A-Z\s-]+(\scharacter(s)?)?\s\((.{1,4})\)')
   def unicode_replacement(matchobj):
     groups = list(matchobj.groups())
     if not groups[1]: groups[1] = ''
