@@ -207,7 +207,7 @@ def main(input, output):
   # Keep copying stuff from the front of the source document into this
   # page, until we find the first heading that isn't class="no-toc"
   for e in child_iter:
-      if e.getnext().tag == 'h2' and 'no-toc' not in (e.getnext().get('class') or '').split(' '):
+      if (e.getnext().tag == 'h2' and 'no-toc' not in (e.getnext().get('class') or '').split(' ')) or (e.getnext().tag == 'span' and 'mutli-break' not in (e.getnext().get('class') or '').split(' ')):
           break
       page_body.append(e)
 
