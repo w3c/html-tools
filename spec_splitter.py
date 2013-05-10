@@ -144,7 +144,7 @@ def main(input, output):
 
   # Make a stripped-down version of it
   short_header = deepcopy(header)
-  del short_header[4:]
+  del short_header[1:]
 
   # Extract the items in the TOC (remembering their nesting depth)
   def extract_toc_items(items, ol, depth):
