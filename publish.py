@@ -1,5 +1,5 @@
 import os, sys
-import config, bs, boilerplate
+import config, bs, boilerplate, parser_microsyntax
 from StringIO import StringIO
 from anolislib import generator, utils
 
@@ -31,8 +31,11 @@ Check default-config.json.\n" % spec)
     print 'parsing'
     os.chdir(conf["path"])
     source = open('source')
+    after_microsyntax = StringIO()
+    parser_microsyntax.main(source, after_microsyntax)
+    after_microsyntax.seek(0)
     succint = StringIO()
-    bs.main(source, succint)
+    bs.main(after_microsyntax, succint)
 
     succint.seek(0)
     filtered = StringIO()
