@@ -1,3 +1,4 @@
+# -*- mode: python; coding: utf-8 -*-
 import sys, re, os
 from lxml import etree # requires lxml 2.0
 from copy import deepcopy
@@ -370,14 +371,26 @@ def main(input, output):
 
   if verbose: print "Outputting..."
 
+  # Bug 12539 - lxml incorrectly munges some of our named character
+  # references, so we manually fix them up here.
+  ncrs_to_fix = {
+    "//*[@id='entity-LeftAngleBracket']//span": u"⟨",
+    "//*[@id='entity-RightAngleBracket']//span": u"⟩"
+  }
+  def fixup_ncrs(doc):
+    for selector in ncrs_to_fix:
+      doc.xpath(selector)[0].text = ncrs_to_fix[selector]
+
   # Output all the pages
   for name, doc, title in pages:
       f = open(os.path.join(output, get_page_filename(name)), 'w')
   #    f.write("<!doctype html>\n")
       if use_html5lib_serialiser:
+          if name == 'named-character-references':
+              fixup_ncrs(doc)
           tokens = html5lib.treewalkers.getTreeWalker('lxml')(doc)
           serializer = html5lib.serializer.HTMLSerializer(quote_attr_values=True, inject_meta_charset=False)
-          for text in serializer.serialize(tokens, encoding='us-ascii'):
+          for text in serializer.serialize(tokens, encoding='utf-8'):
             f.write(text)
       else:
           f.write(etree.tostring(doc, pretty_print=False, method="html"))
