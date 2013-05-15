@@ -42,7 +42,7 @@ def main(stdin, stdout, select='w3c-html'):
   source = re.compile('^.*?<!--START %s-->' % select, re.DOTALL).sub('', source)
   source = re.sub('<!--BOILERPLATE ([-.\w]+)-->', boilerplate, source)
 
-  content =  header + source
+  content =  header.decode("utf8") + source.decode("utf8")
 
   def adjust_headers(text, delta, pos, endpos=None):
     def adjust_header(match):
@@ -101,4 +101,4 @@ def main(stdin, stdout, select='w3c-html'):
     content = re.compile('^<!--PUB-Y-->.*?\n', re.M).sub('', content)
     content = re.compile('^<!--PUB-N-->', re.M).sub('', content)
 
-  stdout.write(content)
+  stdout.write(content.encode("utf8"))
