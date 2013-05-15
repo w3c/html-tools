@@ -15,7 +15,7 @@ def main(stdin, stdout, select='w3c-html'):
   header = re.compile('<!-- .*? -->\n?', re.S).sub('', header)
 
   # capture variables
-  vars = conf.vars or {}
+  vars = conf["vars"] or {}
   def vset(match): 
     vars[match.group(1)] = match.group(2)
     return ''
