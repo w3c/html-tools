@@ -25,16 +25,15 @@ def main(stdin, stdout, select='w3c-html'):
   def boilerplate(match):
     name = match.group(1)
     if os.path.exists(os.path.join(bp_dir, name)):
-      content = open(os.path.join(bp_dir, name)).read()
+        content = open(os.path.join(bp_dir, name)).read()
     else:
-      content = match.group(0)
-      sys.stderr.write("Missing file: %s\n" % name)
-
+        content = match.group(0)
+        sys.stderr.write("Missing file: %s\n" % name)
     # substitute variables
     content = re.sub('<!--INSERT (\w+)-->', lambda n: vars[n.group(1)], content)
-
     # use content as the replacement
     return content
+
   header = re.sub('<!--BOILERPLATE ([-.\w]+)-->', boilerplate, header)
   header = re.sub('<!--INSERT (\w+)-->', lambda n: vars[n.group(1)], header)
 
@@ -42,7 +41,7 @@ def main(stdin, stdout, select='w3c-html'):
   source = re.compile('^.*?<!--START %s-->' % select, re.DOTALL).sub('', source)
   source = re.sub('<!--BOILERPLATE ([-.\w]+)-->', boilerplate, source)
 
-  content =  header + source
+  content =  header.decode("utf8") + source.decode("utf8")
 
   def adjust_headers(text, delta, pos, endpos=None):
     def adjust_header(match):
