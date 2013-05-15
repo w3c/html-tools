@@ -6,7 +6,7 @@
     ,   "select": "w3c-html"
     ,   "description":  "HTML Core"
     ,   "vars": {
-            "PUB":              0
+            "PUB":              "0"
         ,   "SHORTSTATUS":      "ED"
         ,   "URLSTATUS":        "ED"
         ,   "LONGSTATUS":       "Editors' Draft"
@@ -22,7 +22,7 @@
     ,   "boilerplate": "header-w3c-html-2dcontext"
     ,   "description":  "Canvas 2D Context"
     ,   "vars": {
-            "PUB":              0
+            "PUB":              "0"
         ,   "SHORTSTATUS":      "ED"
         ,   "URLSTATUS":        "ED"
         ,   "LONGSTATUS":       "Editors' Draft"
@@ -38,7 +38,7 @@
     ,   "boilerplate": "header-w3c-html-microdata"
     ,   "description":  "Microdata"
     ,   "vars": {
-            "PUB":              0
+            "PUB":              "0"
         ,   "SHORTSTATUS":      "ED"
         ,   "URLSTATUS":        "ED"
         ,   "LONGSTATUS":       "Editors' Draft"
