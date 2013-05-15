@@ -57,5 +57,15 @@
     ,   "branches": ["w3c-srcset"]
     ,   "boilerplate": "header-w3c-html-srcset"
     ,   "description":  "The srcset attribute"
+    ,   "vars": {
+            "PUB":              0
+        ,   "SHORTSTATUS":      "ED"
+        ,   "URLSTATUS":        "ED"
+        ,   "LONGSTATUS":       "Editors' Draft"
+        ,   "FULLLONGSTATUS":   "Editors' Draft"
+        ,   "YEAR":             "2013"
+        ,   "SHORTDAY":         "0228"
+        ,   "LONGDAY":          "28 February"
+        }
     }
 }
