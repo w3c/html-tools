@@ -15,9 +15,9 @@ def main(stdin, stdout, select='w3c-html'):
   header = re.compile('<!-- .*? -->\n?', re.S).sub('', header)
 
   # capture variables
-  vars = {}
+  vars = conf.vars or {}
   def vset(match): 
-    vars[match.group(1)]=match.group(2)
+    vars[match.group(1)] = match.group(2)
     return ''
   header = re.sub('<!--SET (\w+)=(.*?)-->\n?', vset, header)
 

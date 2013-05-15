@@ -5,18 +5,50 @@
     ,   "boilerplate": "header-w3c-html-core"
     ,   "select": "w3c-html"
     ,   "description":  "HTML Core"
+    ,   "vars": {
+            "PUB":              0
+        ,   "SHORTSTATUS":      "ED"
+        ,   "URLSTATUS":        "ED"
+        ,   "LONGSTATUS":       "Editors' Draft"
+        ,   "FULLLONGSTATUS":   "Editors' Draft"
+        ,   "YEAR":             "2012"
+        ,   "SHORTDAY":         "1011"
+        ,   "LONGDAY":          "11 October"
+        }
     }
 ,   "2dcontext":    {
         "path":     "../html"
     ,   "branches": ["html5_canvas_CR", "html5_canvas", "FPWD51"]
     ,   "boilerplate": "header-w3c-html-2dcontext"
     ,   "description":  "Canvas 2D Context"
+    ,   "vars": {
+            "PUB":              0
+        ,   "SHORTSTATUS":      "ED"
+        ,   "URLSTATUS":        "ED"
+        ,   "LONGSTATUS":       "Editors' Draft"
+        ,   "FULLLONGSTATUS":   "Editors' Draft"
+        ,   "YEAR":             "2012"
+        ,   "SHORTDAY":         "1011"
+        ,   "LONGDAY":          "11 October"
+        }
+    }
     }
 ,   "microdata":    {
         "path":     "../html"
     ,   "branches": ["CR", "master"]
     ,   "boilerplate": "header-w3c-html-microdata"
     ,   "description":  "Microdata"
+    ,   "vars": {
+            "PUB":              0
+        ,   "SHORTSTATUS":      "ED"
+        ,   "URLSTATUS":        "ED"
+        ,   "LONGSTATUS":       "Editors' Draft"
+        ,   "FULLLONGSTATUS":   "Editors' Draft"
+        ,   "YEAR":             "2012"
+        ,   "SHORTDAY":         "1011"
+        ,   "LONGDAY":          "11 October"
+        }
+    }
     }
 ,   "polyglot":     {
         "url":  "http://dev.w3.org/html5/html-xhtml-author-guide/html-xhtml-authoring-guide-ED-COPY.htm"

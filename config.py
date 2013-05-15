@@ -14,7 +14,14 @@ def load_config ():
         local_config = load_json(local_config_file)
         for k in local_config.keys():
             if k in config:
-                config[k].update(local_config[k])
+                if k == "vars":
+                    for n in local_config["vars"].keys():
+                        if n in config["vars"]:
+                            config["vars"][n].update(local_config["vars"][n])
+                        else:
+                            config["vars"][n] = local_config["vars"][n]
+                else:
+                    config[k].update(local_config[k])
             else:
                 config[k] = local_config[k]
     for spec in config:
