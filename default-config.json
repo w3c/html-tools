@@ -1,7 +1,7 @@
 {
     "html": {
         "path":     "../html"
-    ,   "branches": ["CR", "master", "FPWD51"]
+    ,   "branches": ["CR", "master"]
     ,   "boilerplate": "header-w3c-html-core"
     ,   "select": "w3c-html"
     ,   "description":  "HTML Core"
@@ -18,7 +18,7 @@
     }
 ,   "2dcontext":    {
         "path":     "../html"
-    ,   "branches": ["html5_canvas_CR", "html5_canvas", "FPWD51"]
+    ,   "branches": ["html5_canvas_CR", "html5_canvas"]
     ,   "boilerplate": "header-w3c-html-2dcontext"
     ,   "description":  "Canvas 2D Context"
     ,   "vars": {
