@@ -7,7 +7,7 @@ def main(stdin, stdout, select='w3c-html'):
   conf = config.load_config()[spec]
   os.chdir(conf["path"])
   # bp_dir = os.path.join(conf["path"], "boilerplate")
-  bp_dir = os.path.abspath(os.path.join(__file__, "boilerplate"))
+  bp_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "boilerplate"))
   
 
   # select document

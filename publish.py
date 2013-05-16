@@ -29,6 +29,7 @@ Check default-config.json.\n" % spec)
         exit()
 
     print 'parsing'
+    cur_dir = os.path.abspath(os.path.dirname(__file__))
     os.chdir(conf["path"])
     source = open('source')
     after_microsyntax = StringIO()
@@ -180,7 +181,7 @@ Are you on the correct branch?\n" % spec)
         spec_splitter.main("%s/single-page.html" % spec_dir, spec_dir)
 
         print 'entities'
-        entities = open(os.path.join(conf["path"], "boilerplate/entities.inc"))
+        entities = open(os.path.join(cur_dir, "boilerplate/entities.inc"))
         json = open("%s/entities.json" % spec_dir, 'w')
         from entity_processor_json import entity_processor_json
         entity_processor_json(entities, json)
