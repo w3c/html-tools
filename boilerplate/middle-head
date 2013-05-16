@@ -347,8 +347,10 @@
 <!--PUB-Y-->  <link rel="stylesheet" type="text/css" href="http://www.w3.org/StyleSheets/TR/W3C-<!--INSERT SHORTSTATUS-->">
 <!--PUB-N-->  <link rel="stylesheet" type="text/css" href="http://www.w3.org/StyleSheets/TR/W3C-ED">
 <!--END 2dcontext-->
+<!--END srcset-->
 <!--PUB-N-->  <!--<link href="switcher/W3C-ED-au.css" rel="stylesheet" type="text/css">-->
 <!--START 2dcontext-->
+<!--START srcset-->
 
   <script>
    function getCookie(name) {
@@ -370,15 +372,19 @@
    }
   </script>
   <!--END 2dcontext-->
+  <!--END srcset-->
   <!-- style switcher script by Stommepoes  -->
   <link title="Author documentation only" media="screen,projection" rel="alternate stylesheet" id="authors" href="switcher/teststylesheet.css">
   <script src="switcher/authorstylesheet.js" type="text/javascript"></script>
   <!--START 2dcontext-->
+  <!--START srcset-->
  </head>
  <body>
   <div class="head" id="head">
 <header>
 <!--END 2dcontext-->
+<!--END srcset-->
 <span id="styleSwitch"></span>
 <!--START 2dcontext-->
+<!--START srcset-->
    <p><a href="http://www.w3.org/"><img height="48" width="72" alt="W3C" src="http://www.w3.org/Icons/w3c_home"></a></p>

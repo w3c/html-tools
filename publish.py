@@ -125,7 +125,7 @@ Are you on the correct branch?\n" % spec)
         # things around in the final document.
 
         # Move "The srcset IDL attribute must reflect..."
-        reflect_the_content_attribute = tree.findall("//div[@class='impl']")[1]
+        reflect_the_content_attribute = tree.findall("//div[@class='impl']")[0]
         target = tree.find("//div[@class='note']")
         target.addprevious(reflect_the_content_attribute)
 
