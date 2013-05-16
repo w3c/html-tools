@@ -83,6 +83,36 @@ Are you on the correct branch?\n" % spec)
     if "anolis" in conf:
         opts.update(conf["anolis"])
 
+    if spec == "srcset":
+        import html5lib
+
+        print 'munging (before anolis)'
+
+        filtered.seek(0)
+        pre_anolis_buffer = StringIO()
+
+        # Parse
+        parser = html5lib.html5parser.HTMLParser(tree = html5lib.treebuilders.getTreeBuilder('lxml'))
+        tree = parser.parse(filtered, encoding='utf-8')
+
+        # Move introduction above conformance requirements
+        introduction = tree.findall("//*[@id='introduction']")[0]
+        intro_ps = introduction.xpath("following-sibling::*")
+        target = tree.findall("//*[@id='conformance-requirements']")[0]
+        target.addprevious(introduction)
+        target = introduction
+        target.addnext(intro_ps[2])
+        target.addnext(intro_ps[1])
+        target.addnext(intro_ps[0])
+
+        # Serialize
+        tokens = html5lib.treewalkers.getTreeWalker('lxml')(tree)
+        serializer = html5lib.serializer.HTMLSerializer(quote_attr_values=True, inject_meta_charset=False)
+        for text in serializer.serialize(tokens, encoding='utf-8'):
+            pre_anolis_buffer.write(text)
+
+        filtered = pre_anolis_buffer
+
     print 'indexing'
     filtered.seek(0)
     tree = generator.fromFile(filtered, **opts)
@@ -118,7 +148,7 @@ Are you on the correct branch?\n" % spec)
         tree.xpath("//ol[@class='toc']/li[a[@href='#microdata-dom-api']]")[0].append(link.getparent().getparent())
 
     if spec == "srcset":
-        print 'munging'
+        print 'munging (after anolis)'
         # In the WHATWG spec, srcset="" is simply an aspect of
         # HTMLImageElement and not a separate feature. In order to keep
         # the HTML WG's srcset="" spec organized, we have to move some

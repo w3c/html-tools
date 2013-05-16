@@ -1,5 +1,5 @@
 
-  <h2>Conformance requirements</h2>
+  <h2 id="conformance-requirements">Conformance requirements</h2>
 
   <p>This specification is an HTML specification. All the conformance
   requirements, conformance classes, definitions, dependencies,
