@@ -2,12 +2,11 @@
 
 var fs  = require("fs")
 ,   pth = require("path")
-,   exec = require("child_process").exec
 ,   jsdom = require("jsdom")
 ;
 
 // where are we?
-var rootDir = pth.join(__dirname, "..")
+var rootDir = __dirname
 ,   hbDir = process.argv[2] ? process.argv[2] : pth.join(rootDir, "heartbeat")
 ,   files
 ,   total = 0
@@ -18,10 +17,12 @@ function pubrules () {
     var file = files.shift();
     console.log("Processing " + file + ", " + (total - files.length) + "/" + total);
     if (!/\.html$/.test(file)) return pubrules();
+    // skip single-page, it's just too long
+    if (/single-page\.html/.test(file)) return pubrules();
     
     jsdom.env(
         pth.join(hbDir, file)
-    ,   [pth.join(rootDir, "scripts/jquery.min.js")]
+    ,   [pth.join(rootDir, "jquery.min.js")]
     ,   function (err, window) {
             if (err) return console.log(err);
             var $ = window.$;

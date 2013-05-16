@@ -1,0 +1,11 @@
+
+  <h2>Conformance requirements</h2>
+
+  <p>This specification is an HTML specification. All the conformance
+  requirements, conformance classes, definitions, dependencies,
+  terminology, and typographical conventions described in the core
+  HTML5 specification apply to this specification. <a
+  href="#refsHTML5">[HTML5]</a></p>
+
+  <p>Interfaces are defined in terms of Web IDL. <a
+  href="#refsWEBIDL">[WEBIDL]</a></p>
