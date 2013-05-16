@@ -6,7 +6,9 @@ def main(stdin, stdout, select='w3c-html'):
   if spec == "w3c-html": spec = "html"
   conf = config.load_config()[spec]
   os.chdir(conf["path"])
-  bp_dir = os.path.join(conf["path"], "boilerplate")
+  # bp_dir = os.path.join(conf["path"], "boilerplate")
+  bp_dir = os.path.abspath(os.path.join(__file__, "boilerplate"))
+  
 
   # select document
   header = open(os.path.join(bp_dir, conf["boilerplate"])).read()
