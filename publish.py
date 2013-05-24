@@ -28,10 +28,11 @@ def main(spec, spec_dir):
 Check default-config.json.\n" % spec)
         exit()
 
-    print 'parsing'
     cur_dir = os.path.abspath(os.path.dirname(__file__))
     os.chdir(conf["path"])
     branch = os.popen("git rev-parse --abbrev-ref HEAD").read().rstrip()
+
+    print "parsing in branch %s" %s branch
     source = open('source')
     after_microsyntax = StringIO()
     parser_microsyntax.main(source, after_microsyntax)
