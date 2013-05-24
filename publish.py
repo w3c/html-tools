@@ -32,7 +32,7 @@ Check default-config.json.\n" % spec)
     os.chdir(conf["path"])
     branch = os.popen("git rev-parse --abbrev-ref HEAD").read().rstrip()
 
-    print "parsing in branch %s" %s branch
+    print "parsing in branch %s" % branch
     source = open('source')
     after_microsyntax = StringIO()
     parser_microsyntax.main(source, after_microsyntax)
