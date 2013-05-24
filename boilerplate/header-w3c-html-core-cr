@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<!--SET TRNAME=html5-->
+<!--SET DEVURL=http://www.w3.org/html/wg/drafts/html/CR/-->
+<!--SET COMPONENT=HTML5 spec (editor: Ian Hickson)-->
+<html lang="en-US-x-Hixie">
+  <head>
+    <meta charset='utf-8'>
+    <title>HTML5</title>
+    <script src='link-fixup.js'></script>
+<!--BOILERPLATE middle-head-->
+    <h1 id='big-title'>HTML5</h1>
+    <p class="no-num no-toc subline">A vocabulary and associated APIs for HTML and XHTML</p>
+<!--BOILERPLATE middle-w3c-version-->
+      <dt>Previous Versions:</dt>
+      <dd><a href="http://www.w3.org/TR/2012/CR-html5-20121217/">http://www.w3.org/TR/2012/CR-html5-20121217/</a></dd>
+      <dt id='specification-editors'>W3C Editors:</dt>
+      <dd><a href="http://berjon.com/">Robin Berjon</a>, W3C</dd>
+      <dd><a href="mailto:sfaulkner@paciellogroup.com">Steve Faulkner</a>, The Paciello Group</dd>
+      <dd><a href="mailto:travil@microsoft.com">Travis Leithead</a>, Microsoft</dd>
+      <dd><a href="mailto:Erika.Doyle@microsoft.com">Erika Doyle Navara</a>, Microsoft</dd>
+      <dd><a href="mailto:eoconnor@apple.com">Edward O'Connor</a>, Apple Inc.</dd>
+      <dd><a href="mailto:silviapfeiffer1@gmail.com">Silvia Pfeiffer</a></dd>
+      <dt>WHATWG Editor:</dt>
+      <dd><a href="mailto:ian@hixie.ch">Ian Hickson</a>, Google, Inc.</dd>
+   </dl>
+   <p>
+     This specification is also available as a  <a href="single-page.html">single page HTML</a> document. 
+   </p>
+
+<!--BOILERPLATE middle-w3c-copyright-->
+
+  <h2 class="no-num no-toc">Abstract</h2>
+
+  <p>
+    This specification defines the 5th major revision of the core language of the World Wide Web:
+    the Hypertext Markup Language (HTML). In this version, new features are introduced to help Web 
+    application authors, new elements are introduced based on research into prevailing authoring 
+    practices, and special attention has been given to defining clear conformance criteria for user 
+    agents in an effort to improve interoperability.
+  </p>
+
+  <h2 class="no-num no-toc">Status of This document</h2>
+<!--BOILERPLATE middle-feedback-->
+<!--BOILERPLATE middle-w3c-html-pp-->
+
+  <h2 class="no-num no-toc" id="contents">Table of Contents</h2>
+<!--toc-->
+  <hr>
