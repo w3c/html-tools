@@ -1,6 +1,6 @@
 import sys, config
 
-def main(stdin, stdout, select='w3c-html'):
+def main(stdin, stdout, select='w3c-html', branch="master"):
   import os, re
   spec = select
   if spec == "w3c-html": spec = "html"
@@ -11,7 +11,11 @@ def main(stdin, stdout, select='w3c-html'):
   
 
   # select document
-  header = open(os.path.join(bp_dir, conf["boilerplate"])).read()
+  if branch in conf["boilerplate"]:
+      header_path = conf["boilerplate"][branch]
+  else:
+      header_path = conf["boilerplate"]["master"]
+  header = open(os.path.join(bp_dir, header_path)).read()
 
   # remove instructions
   header = re.compile('<!-- .*? -->\n?', re.S).sub('', header)

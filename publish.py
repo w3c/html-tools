@@ -31,6 +31,7 @@ Check default-config.json.\n" % spec)
     print 'parsing'
     cur_dir = os.path.abspath(os.path.dirname(__file__))
     os.chdir(conf["path"])
+    branch = os.popen("git rev-parse --abbrev-ref HEAD").read().rstrip()
     source = open('source')
     after_microsyntax = StringIO()
     parser_microsyntax.main(source, after_microsyntax)
@@ -41,7 +42,7 @@ Check default-config.json.\n" % spec)
     succint.seek(0)
     filtered = StringIO()
     try:
-        boilerplate.main(succint, filtered, select)
+        boilerplate.main(succint, filtered, select, branch)
     except IOError:
         sys.stderr.write("error: Problem loading boilerplate for %s. \
 Are you on the correct branch?\n" % spec)

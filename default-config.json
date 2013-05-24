@@ -2,7 +2,10 @@
     "html": {
         "path":     "../html"
     ,   "branches": ["CR", "master"]
-    ,   "boilerplate": "header-w3c-html-core"
+    ,   "boilerplate": {
+            "master":   "header-w3c-html-core"
+        ,   "CR":       "header-w3c-html-core-cr"
+        }
     ,   "select": "w3c-html"
     ,   "description":  "HTML Core"
     ,   "vars": {
@@ -19,7 +22,10 @@
 ,   "2dcontext":    {
         "path":     "../html"
     ,   "branches": ["html5_canvas_CR", "html5_canvas"]
-    ,   "boilerplate": "header-w3c-html-2dcontext"
+    ,   "boilerplate": {
+            "html5_canvas":     "header-w3c-html-2dcontext"
+        ,   "html5_canvas_CR":  "header-w3c-html-2dcontext-cr"
+        }
     ,   "description":  "Canvas 2D Context"
     ,   "vars": {
             "PUB":              "0"
@@ -35,7 +41,9 @@
 ,   "microdata":    {
         "path":     "../html"
     ,   "branches": ["master"]
-    ,   "boilerplate": "header-w3c-html-microdata"
+    ,   "boilerplate": {
+            "master":   "header-w3c-html-microdata"
+        }
     ,   "description":  "Microdata"
     ,   "vars": {
             "PUB":              "0"
@@ -51,7 +59,9 @@
 ,   "srcset":    {
         "path": "../html"
     ,   "branches": ["w3c-srcset"]
-    ,   "boilerplate": "header-w3c-html-srcset"
+    ,   "boilerplate": {
+            "w3c-srcset":   "header-w3c-html-srcset"
+        }
     ,   "description":  "The srcset attribute"
     ,   "vars": {
             "PUB":              "0"
