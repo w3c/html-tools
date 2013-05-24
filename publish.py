@@ -8,7 +8,7 @@ def invoked_incorrectly():
     sys.stderr.write("Usage: python %s [%s]\n" % (sys.argv[0],'|'.join(specs)))
     exit()
 
-def main(spec, spec_dir):
+def main(spec, spec_dir, branch="master"):
     conf = None
     try:
         conf = config.load_config()[spec]
@@ -30,9 +30,8 @@ Check default-config.json.\n" % spec)
 
     cur_dir = os.path.abspath(os.path.dirname(__file__))
     os.chdir(conf["path"])
-    branch = os.popen("git rev-parse --abbrev-ref HEAD").read().rstrip()
 
-    print "parsing in branch %s" % branch
+    print "parsing"
     source = open('source')
     after_microsyntax = StringIO()
     parser_microsyntax.main(source, after_microsyntax)
