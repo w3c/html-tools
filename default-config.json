@@ -34,7 +34,7 @@
     }
 ,   "microdata":    {
         "path":     "../html"
-    ,   "branches": ["CR", "master"]
+    ,   "branches": ["master"]
     ,   "boilerplate": "header-w3c-html-microdata"
     ,   "description":  "Microdata"
     ,   "vars": {
