@@ -48,10 +48,6 @@
         ,   "LONGDAY":          "11 October"
         }
     }
-,   "polyglot":     {
-        "url":  "http://dev.w3.org/html5/html-xhtml-author-guide/html-xhtml-authoring-guide-ED-COPY.htm"
-    ,   "description":  "Polyglot"
-    }
 ,   "srcset":    {
         "path": "../html"
     ,   "branches": ["w3c-srcset"]
