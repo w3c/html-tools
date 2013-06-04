@@ -228,7 +228,7 @@ Are you on the correct branch?\n" % spec)
 
     print "copying"
     if spec == "html":
-        copy_dependencies(["images", "fonts", "404/*", "switcher"])
+        copy_dependencies(["images", "fonts", "404/*", "switcher", "js"])
     elif spec == "2dcontext":
         copy_dependencies(["images", "fonts"])
     else:

@@ -21,7 +21,12 @@ function pubrules () {
     if (!/\.html$/.test(file)) return pubrules();
     
     // validate HTML
-    var url = (process.argv[3] ? process.argv[3] : "http://berjon.com/TR/html5/") + file
+    var base = process.argv[3];
+    if (!base) {
+        console.log("ERROR: you need to specify a base URL.");
+        process.exit(1);
+    }
+    var url = base + file
     // ,   valid = "http://validator.w3.org/check?uri=" + encodeURIComponent(url)
     ,   valid = "http://html5.validator.nu/?out=json&doc=" + url
     ;

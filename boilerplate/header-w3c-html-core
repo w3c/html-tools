@@ -2,18 +2,13 @@
 <!--SET TRNAME=html51-->
 <!--SET DEVURL=http://www.w3.org/html/wg/drafts/html/master/-->
 <!--SET COMPONENT=HTML5 spec (editor: Ian Hickson)-->
-<html lang="en-US-x-Hixie">
+<html lang="en-US-x-Hixie" data-bug-short_desc='[HTML]: ' data-bug-product='HTML WG' data-bug-component='HTML5 spec'>
   <head>
     <meta charset='utf-8'>
-    <!-- inline bug filer script -->
-    <script src="https://dvcs.w3.org/hg/html-api-map/raw-file/tip/js/bug-assist.js"></script>
-    <!-- <meta name="bug.blocked" content="14949"> -->
-    <meta name="bug.short_desc" content="[HTML]: ">
-    <meta name="bug.product" content="HTML WG">
-    <meta name="bug.component" content="HTML5 spec">
     <title>HTML 5.1
 <!--PUB-N--> Nightly
     </title>
+    <script src="js/bug-assist.js"></script>
     <script src='link-fixup.js'></script>
 <!--BOILERPLATE middle-head-->
     <h1 id='big-title'>HTML 5.1
@@ -23,14 +18,15 @@
 <!--BOILERPLATE middle-w3c-version-->
       <dt>Previous Versions:</dt>
       <dd><a href="http://www.w3.org/TR/2012/WD-html51-20121217/">http://www.w3.org/TR/2012/WD-html51-20121217/</a></dd>
-      <dt id='specification-editors'>W3C Editors:</dt>
+      <dt id='specification-editors'>Editors:</dt>
+      <dd>W3C:</dd>
       <dd><a href="http://berjon.com/">Robin Berjon</a>, W3C</dd>
       <dd><a href="mailto:sfaulkner@paciellogroup.com">Steve Faulkner</a>, The Paciello Group</dd>
       <dd><a href="mailto:travil@microsoft.com">Travis Leithead</a>, Microsoft</dd>
       <dd><a href="mailto:Erika.Doyle@microsoft.com">Erika Doyle Navara</a>, Microsoft</dd>
       <dd><a href="mailto:eoconnor@apple.com">Edward O'Connor</a>, Apple Inc.</dd>
       <dd><a href="mailto:silviapfeiffer1@gmail.com">Silvia Pfeiffer</a></dd>
-      <dt>WHATWG Editor:</dt>
+      <dd>WHATWG:</dd>
       <dd><a href="mailto:ian@hixie.ch">Ian Hickson</a>, Google, Inc.</dd>
    </dl>
    <p>
