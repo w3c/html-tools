@@ -2,7 +2,7 @@
 <!--SET TRNAME=html51-->
 <!--SET DEVURL=http://www.w3.org/html/wg/drafts/html/master/-->
 <!--SET COMPONENT=HTML5 spec (editor: Ian Hickson)-->
-<html lang="en-US-x-Hixie" data-bug-short_desc='[HTML]: ' data-bug-product='HTML WG' data-bug-component='HTML5 spec'>
+<html lang="en-US-x-Hixie" data-bug-product='HTML WG' data-bug-component='HTML5 spec'>
   <head>
     <meta charset='utf-8'>
     <title>HTML 5.1
