@@ -129,6 +129,7 @@
        pre strong { color: black; font: inherit; font-weight: bold; background: yellow; }
        pre em { font-weight: bolder; font-style: normal; }
        @media screen { code { color: #D93B00; } code :link, code :visited { color: inherit; } }
+       var { background-color: #f9f9f9; border: 1px solid #eee; padding: 0 2px; }
        var sub { vertical-align: bottom; font-size: smaller; position: relative; top: 0.1em; }
        table { border-collapse: collapse; border-style: hidden hidden none hidden; }
        table thead, table tbody { border-bottom: solid; }
