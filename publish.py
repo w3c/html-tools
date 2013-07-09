@@ -224,7 +224,7 @@ Are you on the correct branch?\n" % spec)
         import types
         if not isinstance(targets, types.ListType): targets = [targets]
         for target in targets:
-            os.system("/bin/csh -i -c 'cp -R %s %s'" % (os.path.join(conf["path"], target), spec_dir))
+            os.system("/bin/csh -i -c '/bin/cp -R %s %s'" % (os.path.join(conf["path"], target), spec_dir))
 
     print "copying"
     if spec == "html":
@@ -251,4 +251,8 @@ if __name__ == '__main__':
         spec_dir = sys.argv[2]
     except IndexError:
         spec_dir = None
-    main(spec, spec_dir)
+    try:
+        branch = sys.argv[3]
+    except IndexError:
+        branch = None
+    main(spec, spec_dir, branch)
