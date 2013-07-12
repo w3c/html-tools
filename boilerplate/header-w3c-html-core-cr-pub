@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<!--SET TRNAME=html5-->
+<!--SET DEVURL=http://www.w3.org/html/wg/drafts/html/CR/-->
+<!--SET COMPONENT=HTML5 spec (editor: Ian Hickson)-->
+<html lang="en-US-x-Hixie">
+  <head>
+    <meta charset='utf-8'>
+    <title>HTML5</title>
+    <script src='link-fixup.js'></script>
+<!--BOILERPLATE middle-head-->
+    <h1 id='big-title'>HTML5</h1>
+    <p class="no-num no-toc subline">A vocabulary and associated APIs for HTML and XHTML</p>
+<!--BOILERPLATE middle-w3c-version-->
+      <dt>Previous Versions:</dt>
+      <dd><a href="http://www.w3.org/TR/2012/CR-html5-20121217/">http://www.w3.org/TR/2012/CR-html5-20121217/</a></dd>
+      <dt id='specification-editors'>Editors:</dt>
+      <dd>W3C:</dd>
+      <dd><a href="http://berjon.com/">Robin Berjon</a>, W3C</dd>
+      <dd><a href="mailto:sfaulkner@paciellogroup.com">Steve Faulkner</a>, The Paciello Group</dd>
+      <dd><a href="mailto:travil@microsoft.com">Travis Leithead</a>, Microsoft</dd>
+      <dd><a href="mailto:Erika.Doyle@microsoft.com">Erika Doyle Navara</a>, Microsoft</dd>
+      <dd><a href="mailto:eoconnor@apple.com">Edward O'Connor</a>, Apple Inc.</dd>
+      <dd><a href="mailto:silviapfeiffer1@gmail.com">Silvia Pfeiffer</a></dd>
+      <dd>WHATWG:</dd>
+      <dd><a href="mailto:ian@hixie.ch">Ian Hickson</a>, Google, Inc.</dd>
+   </dl>
+   <p>
+     This specification is also available as a  <a href="single-page.html">single page HTML</a> document. 
+   </p>
+
+<!--BOILERPLATE middle-w3c-copyright-->
+
+  <h2 class="no-num no-toc">Abstract</h2>
+
+  <p>
+    This specification defines the 5th major revision of the core language of the World Wide Web:
+    the Hypertext Markup Language (HTML). In this version, new features are introduced to help Web 
+    application authors, new elements are introduced based on research into prevailing authoring 
+    practices, and special attention has been given to defining clear conformance criteria for user 
+    agents in an effort to improve interoperability.
+  </p>
+
+  <h2 class="no-num no-toc">Status of This document</h2>
+<!--BOILERPLATE middle-feedback-->
+  <p>
+    Publication as a Candidate Recommendation does not imply endorsement by the W3C Membership. This
+    is a draft document and may be updated, replaced or obsoleted by other documents at any time. It
+    is inappropriate to cite this document as other than work in progress.
+  </p>
+  <p>
+    For this specification to exit the CR stage, the conditions detailed in the
+    <a href='http://dev.w3.org/html5/decision-policy/public-permissive-exit-criteria.html'>CR Exit Criteria
+    (Public Permissive version 3)</a> document will have to be met.
+  </p>
+  <div>
+    <p>
+      The following features are <strong>at risk</strong> and may be removed due to lack of
+      implementation.
+    </p>
+    <ul>
+      <li>
+        <a href="#appcache">Application Cache</a>
+      </li>
+      <li>
+        <a href="#the-dialog-element">&lt;dialog&gt;</a>
+      </li>
+      <li>
+        <a href="#the-details-element">&lt;details&gt;</a> and 
+        <a href="#the-summary-element">&lt;summary&gt;</a>
+      </li>
+      <li>
+        <a href="#color-state-(type=color)">&lt;input type=color&gt;</a>
+      </li>
+      <li>
+        <a href="#date-and-time-state-(type=datetime)">&lt;input type=datetime&gt;</a>, 
+        <a href="#month-state-(type=month)">&lt;input type=month&gt;</a>, 
+        <a href="#week-state-(type=week)">&lt;input type=week&gt;</a>, 
+        <a href="#time-state-(type=time)">&lt;input type=time&gt;</a>, 
+        <a href="#local-date-and-time-state-(type=datetime-local)">&lt;input type=datetime-local&gt;</a>
+      </li>
+      <li>
+        <a href="#the-output-element">&lt;output&gt;</a>
+      </li>
+      <li>
+        <a href="#attr-style-scoped">&lt;style scoped&gt;</a>
+      </li>
+      <li>
+        <a href="#attr-iframe-seamless">&lt;iframe seamless&gt;</a>
+      </li>
+      <li>
+        <a href="#custom-handlers">Custom scheme and content handlers 
+        (registerProtocolHandler and registerContentHandler)</a>
+      </li>
+      <li>
+        <a href="#outlines">Outline algorithm</a>
+      </li>
+      <li>
+        <a href="#links,-forms,-and-navigation">UA mechanism for navigating to resources 
+        linked to in cite=""</a>, see <a href="https://www.w3.org/Bugs/Public/show_bug.cgi?id=18915">Bug 18915</a> for more.
+      </li>
+    </ul>
+  </div>
+<!--BOILERPLATE middle-w3c-html-pp-->
+
+  <h2 class="no-num no-toc" id="contents">Table of Contents</h2>
+<!--toc-->
+  <hr>

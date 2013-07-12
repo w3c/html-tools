@@ -321,7 +321,7 @@ def main(input, output):
       # Add a subset of the TOC to each page:
 
       # Find the items that are on this page
-      new_toc_items = [ (d, id, e) for (d, id, e) in toc_items if id_pages[id] == name ]
+      new_toc_items = [ (d, id, e) for (d, id, e) in toc_items if id_pages.get(id) == name ]
       if len(new_toc_items) > 1: # don't bother if there's only one item, since it looks silly
           # Construct the new toc <ol>
           new_toc = etree.XML(u'<ol class="toc"/>')
