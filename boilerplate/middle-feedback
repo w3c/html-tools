@@ -135,7 +135,7 @@
 <!--PUB-Y-->  </script>
 <!--PUB-Y-->  <!--
 <!--PUB-Y-->  <script>
-<!--PUB-Y-->   if (location == '<!--INSERT DEVURL-->') {
+<!--PUB-Y-->   if (location == '<!--INSERT DEVURL-->' || document.documentElement.getAttribute("data-wip") === "false") {
 <!--PUB-Y-->     var wip = document.getElementById('wip');
 <!--PUB-Y-->     wip.parentNode.removeChild(wip);
 <!--PUB-Y-->   }

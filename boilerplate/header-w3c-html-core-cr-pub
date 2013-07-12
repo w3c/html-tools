@@ -2,7 +2,7 @@
 <!--SET TRNAME=html5-->
 <!--SET DEVURL=http://www.w3.org/html/wg/drafts/html/CR/-->
 <!--SET COMPONENT=HTML5 spec (editor: Ian Hickson)-->
-<html lang="en-US-x-Hixie">
+<html lang="en-US-x-Hixie" data-wip="false">
   <head>
     <meta charset='utf-8'>
     <title>HTML5</title>
@@ -11,7 +11,7 @@
     <h1 id='big-title'>HTML5</h1>
     <p class="no-num no-toc subline">A vocabulary and associated APIs for HTML and XHTML</p>
 <!--BOILERPLATE middle-w3c-version-->
-      <dt>Previous Versions:</dt>
+      <dt>Previous Version:</dt>
       <dd><a href="http://www.w3.org/TR/2012/CR-html5-20121217/">http://www.w3.org/TR/2012/CR-html5-20121217/</a></dd>
       <dt id='specification-editors'>Editors:</dt>
       <dd>W3C:</dd>
