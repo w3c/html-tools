@@ -2,6 +2,7 @@
 <!--SET TRNAME=2dcontext-->
 <!--SET DEVURL=http://www.w3.org/html/wg/drafts/2dcontext/html5_canvas_CR/-->
 <!--SET COMPONENT=HTML Canvas 2D Context (editor: Ian Hickson)-->
+<!--SET FINGERPRINT=<span title="fingerprinting vector" class="fingerprint"><img src="images/fingerprint.png" alt="(This is a fingerprinting vector.)" width=46 height=64></span>-->
 <html lang="en-US-x-Hixie" data-wip="false">
   <head>
     <meta charset='utf-8'>
