@@ -23,7 +23,12 @@ function pubrules () {
     if (!/\.html$/.test(file)) return pubrules();
     
     // validate CSS
-    var url = (process.argv[3] ? process.argv[3] : "http://berjon.com/TR/html5/") + file
+    var base = process.argv[3];
+    if (!base) {
+        console.log("ERROR: you need to specify a base URL.");
+        process.exit(1);
+    }
+    var url = base + file
     // ,   css = "http://jigsaw.w3.org/css-validator/validator?profile=css3&output=json&uri=" + encodeURIComponent(url)
     ,   css = "http://jigsaw.w3.org/css-validator/validator?profile=css3&output=ucn&uri=" + encodeURIComponent(url)
     ;
