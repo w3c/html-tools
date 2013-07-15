@@ -25,7 +25,6 @@ def main(stdin, stdout, select='w3c-html', branch="master"):
   def vset(match): 
     vars[match.group(1)] = match.group(2)
     return ''
-  header = re.sub('<!--SET (\w+)=(.*?)-->\n?', vset, header)
 
   # include nested boiler plate
   def boilerplate(match):
@@ -36,19 +35,17 @@ def main(stdin, stdout, select='w3c-html', branch="master"):
       content = match.group(0)
       sys.stderr.write("Missing file: %s\n" % name)
 
-    # substitute variables
-    content = re.sub('<!--INSERT (\w+)-->', lambda n: vars[n.group(1)], content)
-
     # use content as the replacement
     return content
   header = re.sub('<!--BOILERPLATE ([-.\w]+)-->', boilerplate, header)
-  header = re.sub('<!--INSERT (\w+)-->', lambda n: vars[n.group(1)], header)
 
   source = stdin.read()
   source = re.compile('^.*?<!--START %s-->' % select, re.DOTALL).sub('', source)
   source = re.sub('<!--BOILERPLATE ([-.\w]+)-->', boilerplate, source)
 
   content =  header.decode("utf8") + source.decode("utf8")
+  content = re.sub('<!--SET (\w+)=(.*?)-->\n?', vset, content)
+  content = re.sub('<!--INSERT (\w+)-->', lambda n: vars[n.group(1)], content)
 
   def adjust_headers(text, delta, pos, endpos=None):
     def adjust_header(match):
