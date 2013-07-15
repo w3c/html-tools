@@ -43,6 +43,15 @@
   <h2 class="no-num no-toc">Status of This document</h2>
 <!--BOILERPLATE middle-feedback-->
   <p>
+    This document was published by the HTML Working Group as an updated revision to the Candidate
+    Recommendation
+    (<a href='http://www.w3.org/TR/2012/CR-html5-20121217/'>http://www.w3.org/TR/2012/CR-html5-20121217/</a>).
+    This document is intended to become a W3C Recommendation. W3C publishes a Candidate Recommendation to 
+    indicate that the document is believed to be stable and to encourage implementation by the developer 
+    community. This updated Candidate Recommendation is expected to advance to Proposed Recommendation 
+    no earlier than 01 September 2014.  All feedback is welcome.
+  </p>
+  <p>
     Publication as a Candidate Recommendation does not imply endorsement by the W3C Membership. This
     is a draft document and may be updated, replaced or obsoleted by other documents at any time. It
     is inappropriate to cite this document as other than work in progress.
