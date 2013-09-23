@@ -148,16 +148,16 @@ def main(input, output):
   del short_header[1:]
 
   # Extract the items in the TOC (remembering their nesting depth)
-  def extract_toc_items(items, ol, depth):
-      for li in ol.iterchildren():
+  def extract_toc_items(items, toc, depth):
+      for li in toc.iterchildren():
           for c in li.iterchildren():
               if c.tag == 'a':
                 if c.get('href')[0] == '#':
                   items.append( (depth, c.get('href')[1:], c) )
-              elif c.tag == 'ol':
+              elif c.tag in ('ol', 'ul'):
                   extract_toc_items(items, c, depth+1)
   toc_items = []
-  extract_toc_items(toc_items, original_body.find('.//ol[@class="toc"]'), 0)
+  extract_toc_items(toc_items, original_body.find('.//*[@class="toc"]'), 0)
 
   # Stuff for fixing up references:
 
