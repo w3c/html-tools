@@ -223,6 +223,7 @@
        .warning:before { font-style: normal; }
        p.note:before { content: 'Note: '; font-weight: bolder;}
        p.warning:before { content: '\26A0 Warning! '; }
+       .critical {margin:1em; border:double red; padding:1em; background-color:#F9F0D4;}
 
        .bookkeeping:before { display: block; content: 'Bookkeeping details'; font-weight: bolder; font-style: italic; }
        .bookkeeping { font-size: 0.8em; margin: 2em 0; }
