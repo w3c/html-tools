@@ -1,4 +1,3 @@
-
     <!-- intro boilerplate (required) -->
 
     <p>
@@ -160,9 +159,9 @@
 
   <!-- relationship to other work (required) -->
   <p>Work on this specification is also done at the <a
-  href="http://www.whatwg.org/">WHATWG</a>. The W3C HTML working group
-  actively pursues convergence with the WHATWG, as required by the <a
-  href="http://www.w3.org/2007/03/HTML-WG-charter">W3C HTML working
+  href="http://www.whatwg.org/">WHATWG</a>. The W3C HTML working group actively pursues convergence of the 
+  HTML specification with the WHATWG living standard, within the bounds of the <a
+  href="http://www.w3.org/2013/09/html-charter.html">W3C HTML working
   group charter</a>. There are various ways to follow this work at the WHATWG:</p>
   <ul>
       <li>Commit-Watchers mailing list (complete source diffs): <a href="http://lists.whatwg.org/listinfo.cgi/commit-watchers-whatwg.org">http://lists.whatwg.org/listinfo.cgi/commit-watchers-whatwg.org</a></li>
