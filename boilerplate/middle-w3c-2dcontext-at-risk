@@ -1,0 +1,25 @@
+<div>
+  <p>
+    The following features are <strong>at risk</strong> and may be removed due to lack of
+    implementation.
+  </p>
+  <ul>
+    <li>
+      <a href="#path-objects">Path objects</a>
+    </li>
+    <li>
+      All methods that operate on path objects: <a href="#dom-context-2d-fill">fill(path)</a>, <a href="#dom-context-2d-stroke">stroke(path)</a>, <a href="#dom-context-2d-clip">clip(path)</a>, <a href="#dom-context-2d-scrollpathintoview">scrollPathIntoView</a>, <a href="#dom-context-2d-ispointinpath">isPointInPath(Path path, ...)</a>, <a href="#dom-context-2d-drawsystemfocusring">drawSystemFocusRing(path, element)</a> and <a href="#dom-context-2d-drawcustomfocusring">drawCustomFocusRing(path, element)</a>
+    <li>
+      <a href="#hit-regions">Hit regions</a>
+    </li>
+    <li>
+      All attributes of the <a href="#textmetrics">Text metrics</a> object except <a href="#dom-textmetrics-width">'width'</a>
+    </li>
+    <li>
+      <a href="#dom-context-2d-ellipse">Ellipse</a>
+    </li>
+    <li>
+      Focus rings: <a href="#dom-context-2d-drawsystemfocusring">drawSystemFocusRing(element)</a> and <a href="#dom-context-2d-drawcustomfocusring">drawCustomFocusRing(element)</a>
+    </li>
+  </ul>
+</div>
