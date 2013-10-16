@@ -38,7 +38,7 @@
 
 <!--FIXUP microdata +1-->
 
-  <h2>Common infrastructure</h2>
+  <!-- <h2 id='common-infrastructure'>Common infrastructure</h2>
 
   <p>This specification is designed to be used with a <dfn>host
   language</dfn> that defines the following terms:</p>
@@ -81,7 +81,7 @@
   </ul>
 
   <p>The <span>host language</span> also defines the elements used in
-  this specification.</p>
+  this specification.</p> -->
 
 <!--YYY-->
   <h3>Dependencies</h3>

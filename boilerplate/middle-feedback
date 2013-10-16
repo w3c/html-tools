@@ -152,15 +152,17 @@
   href="https://github.com/w3c/html">the W3C HTML git repository</a>.
   </p>
 
-  <!--END microdata-->
   <!-- status of document, group responsible (required) -->
   <p>The W3C <a href="http://www.w3.org/html/wg/">HTML Working
   Group</a> is the W3C working group responsible for this
-  specification's progress along the W3C Recommendation
-  track.
+  specification's progress.
 <!--PUB-Y-->  This specification is the <!--INSERT LONGDAY--> <!--INSERT YEAR--> <!--INSERT LONGSTATUS-->.
 <!--PUB-N-->  This specification is the [DATE 1 January 1970] Editor's Draft.
+    <!--END microdata-->
+    This specification is intended to become a W3C Recommendation.
+    <!--START microdata-->
   </p>
+  <!--END microdata-->
 
   <!-- relationship to other work (required) -->
   <p>Work on this specification is also done at the <a
