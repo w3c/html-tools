@@ -136,7 +136,6 @@ Are you on the correct branch?\n" % spec)
 
     if spec == "microdata":
         print 'munging'
-        import lxml
         # get the h3 for the misplaced section (it has no container)
         section = tree.xpath("//h3[@id = 'htmlpropertiescollection']")[0]
         # then get all of its following siblings that have the h2 for the next section as 
