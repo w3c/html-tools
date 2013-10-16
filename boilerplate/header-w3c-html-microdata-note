@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<!--SET TRNAME=microdata-->
+<!--SET DEVURL=http://www.w3.org/html/wg/drafts/microdata/master/-->
+<!--SET COMPONENT=HTML Microdata (editor: Ian Hickson)-->
+<html lang="en-US-x-Hixie">
+ <head>
+  <meta charset='utf-8'>
+  <title>HTML Microdata</title>
+  <!--BOILERPLATE middle-head-->
+   <h1>HTML Microdata</h1>
+   <h2 class="no-num no-toc"></h2>
+<!--BOILERPLATE middle-w3c-version-->
+    <dt>Previous Versions:</dt>
+    <dd><a href="http://www.w3.org/TR/2012/WD-microdata-20120329/">http://www.w3.org/TR/2012/WD-microdata-20120329/</a></dd>
+    <dt>Editor:</dt>
+    <dd><a href="mailto:ian@hixie.ch">Ian Hickson</a>, Google, Inc.</dd>
+   </dl>
+  <!--BOILERPLATE middle-w3c-copyright-->
+
+  <h2 class="no-num no-toc">Abstract</h2>
+
+  <p>This specification defines the HTML microdata mechanism. This
+  mechanism allows machine-readable data to be embedded in HTML
+  documents in an easy-to-write manner, with an unambiguous parsing
+  model. It is compatible with numerous other data formats including
+  RDF and JSON.</p>
+
+
+  <h2 class="no-num no-toc">Status of This document</h2>
+  <!--BOILERPLATE middle-feedback-->
+  <!--BOILERPLATE middle-w3c-html-module-status--><!--YYY-->
+  <!--BOILERPLATE middle-w3c-html-pp-->
+
+
+  <h2 class="no-num no-toc" id="contents">Table of Contents</h2>
+  <!--toc-->
+  <hr>
+
+<!--FIXUP microdata +1-->
+
+  <h2>Common infrastructure</h2>
+
+  <p>This specification is designed to be used with a <dfn>host
+  language</dfn> that defines the following terms:</p>
+
+  <ul class="brief">
+   <li>DOM <dfn>collections</dfn>
+   <li>The <dfn><code>HTMLCollection</code> interface</dfn>
+   <li><dfn title="reflect">Reflection</dfn> of IDL attributes
+   <li><dfn>Tree order</dfn> in a DOM tree
+   <li>A node's <dfn>home subtree</dfn>
+   <li><dfn>URL</dfn>
+   <li><dfn>Valid URL</dfn>
+   <li><dfn>Absolute URL</dfn>
+   <li><dfn>Resolve a URL</dfn>.</p>
+   <li><dfn>Alphanumeric ASCII characters</dfn>
+   <li><dfn>Space characters</dfn>
+   <li><dfn>Split a string on spaces</dfn>
+   <li><dfn>Converted to ASCII uppercase</dfn>
+   <li><dfn>Prefix match</dfn>
+   <li><dfn>HTML elements</dfn>
+   <li>The <dfn><code>HTMLElement</code></dfn> interface
+   <li>The <dfn><code>HTMLDocument</code></dfn> interface
+   <li><dfn>The <code>title</code> element</dfn> in the context of an <code>HTMLDocument</code>
+   <li><dfn>Flow content</dfn>
+   <li><dfn>Phrasing content</dfn>
+   <li>An element's <dfn title="concept-ID">ID</dfn>
+   <li>An element's <dfn>language</dfn>
+   <li>A set of <dfn>global attributes</dfn>
+   <li><dfn>Boolean attribute</dfn>
+   <li><dfn>Unordered set of unique space-separated tokens</dfn>
+   <li><dfn>Valid non-negative integer</dfn>
+   <li><dfn title="concept-date">Date</dfn>
+   <li><dfn title="concept-time">Time</dfn>
+   <li><dfn title="concept-datetime">Global date and time</dfn>
+   <li><dfn>Valid date string</dfn>
+   <li><dfn>Valid global date and time string</dfn>
+   <li><dfn>The document's current address</dfn>
+   <li><dfn>Drag-and-drop initialization steps</dfn>
+   <li>The <dfn>list of dragged nodes</dfn>
+  </ul>
+
+  <p>The <span>host language</span> also defines the elements used in
+  this specification.</p>
+
+<!--YYY-->
+  <h3>Dependencies</h3>
+
+  <p>This specification depends on the Web IDL and HTML5
+  specifications. <a href="#refsWEBIDL">[WEBIDL]</a> <a
+  href="#refsHTML5">[HTML5]</a></p>
+
+
+  <h3>Terminology</h3>
+
+  <p>This specification relies heavily on the HTML5 specification to
+  define underlying terms.</p>
+
+  <p>HTML5 defines the concept of DOM <dfn>collections</dfn> and the
+  <dfn><code>HTMLCollection</code></dfn> interface, as well as the
+  concept of IDL attributes <dfn title="reflect">reflecting</dfn>
+  content attributes. It also defines <dfn>tree order</dfn> and the
+  concept of a node's <dfn>home subtree</dfn>.</p>
+
+  <p>HTML5 defines the terms <dfn>URL</dfn>, <dfn>valid URL</dfn>,
+  <dfn>absolute URL</dfn>, and <dfn>resolve a URL</dfn>.</p>
+
+  <p>HTML5 defines the terms <dfn>alphanumeric ASCII characters</dfn>,
+  <dfn>space characters</dfn> <dfn>split a string on spaces</dfn>,
+  <dfn>converted to ASCII uppercase</dfn>, and <dfn>prefix
+  match</dfn>.</p>
+
+  <p>HTML5 defines the meaning of the term <dfn>HTML elements</dfn>, as
+  well as all the elements referenced in this specification. It also
+  defines the <dfn><code>HTMLElement</code></dfn> and
+  <dfn><code>HTMLDocument</code></dfn> interfaces. It defines the
+  specific concept of <dfn>the <code>title</code> element</dfn> in the
+  context of an <code>HTMLDocument</code>. In the context of content
+  models it defines the terms <dfn>flow content</dfn> and
+  <dfn>phrasing content</dfn>. It also defines what an element's <dfn
+  title="concept-ID">ID</dfn> or <dfn>language</dfn> is in HTML.</p>
+
+  <p>HTML5 defines the set of <dfn>global attributes</dfn>, as well as
+  terms used in describing attributes and their processing, such as
+  the concept of a <dfn>boolean attribute</dfn>, of an <dfn>unordered
+  set of unique space-separated tokens</dfn>, of a <dfn>valid
+  non-negative integer</dfn>, of a <dfn
+  title="concept-date">date</dfn>, a <dfn
+  title="concept-time">time</dfn>, a <dfn
+  title="concept-datetime">global date and time</dfn>, a <dfn>valid
+  date string</dfn>, and a <dfn>valid global date and time
+  string</dfn>.</p>
+
+  <p>HTML5 defines what <dfn>the document's current address</dfn>
+  is.</p>
+
+  <p>Finally, HTML5 also defines the concepts of <dfn>drag-and-drop
+  initialization steps</dfn> and of the <dfn>list of dragged
+  nodes</dfn>, which come up in the context of drag-and-drop
+  interfaces.</p>
+
+<!--/YYY-->
+<!--FIXUP microdata -1-->
