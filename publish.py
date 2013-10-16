@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, re
 import config, bs, boilerplate, parser_microsyntax
 from StringIO import StringIO
 from anolislib import generator, utils
@@ -44,6 +44,15 @@ Check default-config.json.\n" % spec)
 
     succint.seek(0)
     filtered = StringIO()
+    if spec == "microdata":
+        md_content = succint.read()
+        md_content = re.sub('<h2 id="iana">IANA considerations</h2>',
+                            '<!--BOILERPLATE microdata-extra-section--><h2 id="iana">IANA considerations</h2>',
+                            md_content)
+        succint = StringIO()
+        succint.write(md_content)
+        succint.seek(0)
+    
     try:
         boilerplate.main(succint, filtered, select, branch)
     except IOError:
@@ -135,7 +144,7 @@ Are you on the correct branch?\n" % spec)
             dt.getparent().remove(dt)
 
     if spec == "microdata":
-        print 'munging'
+        print 'munging (after anolis)'
         # get the h3 for the misplaced section (it has no container)
         section = tree.xpath("//h3[@id = 'htmlpropertiescollection']")[0]
         # then get all of its following siblings that have the h2 for the next section as 
