@@ -14,7 +14,9 @@ in_semantics = False
 in_semantics_seen_first = False
 
 def main(input, output):
-  global no_split_exceptions
+  global no_split_exceptions, in_semantics, in_semantics_seen_first
+  in_semantics = False
+  in_semantics_seen_first = False
   if use_html5lib_parser or use_html5lib_serialiser:
       import html5lib
       import html5lib.serializer

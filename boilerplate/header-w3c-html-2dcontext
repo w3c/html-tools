@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--SET TRNAME=2dcontext2-->
-<!--SET DEVURL=http://www.w3.org/html/wg/drafts/2dcontext/html5_canvas/-->
+<!--SET DEVURL=http://www.w3.org/html/wg/drafts/2dcontext/master/-->
 <!--SET COMPONENT=HTML Canvas 2D Context (editor: Ian Hickson)-->
 <html lang="en-US-x-Hixie">
   <head>
@@ -14,8 +14,8 @@
     </h1>
     <h2 class="no-num no-toc"></h2>
 <!--BOILERPLATE middle-w3c-version-->
-      <dt>Previous Versions:</dt>
-      <dd><a href='http://www.w3.org/TR/2012/WD-2dcontext2-20121217/'>http://www.w3.org/TR/2012/WD-2dcontext2-20121217/</a></dd>
+      <dt>Previous Version:</dt>
+      <dd><a href='http://www.w3.org/TR/2013/WD-2dcontext2-20130528/'>http://www.w3.org/TR/2013/WD-2dcontext2-20130528/</a></dd>
       <dt id='specification-editors'>Editors:</dt>
       <dd>W3C:</dd>
       <dd><a href="mailto:cabanier@adobe.com">Rik Cabanier</a>, Adobe Systems, Inc.</dd>
