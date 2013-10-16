@@ -22,7 +22,10 @@ def main(spec, spec_dir, branch="master"):
 
     try:
         if not spec_dir:
-            spec_dir = os.path.join(conf["output"], spec)
+            if conf.get("bareOutput", False):
+                spec_dir = conf["output"]
+            else:
+                spec_dir = os.path.join(conf["output"], spec)
     except KeyError:
         sys.stderr.write("error: Must specify output directory for %s! \
 Check default-config.json.\n" % spec)

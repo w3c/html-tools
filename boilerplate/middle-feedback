@@ -22,12 +22,14 @@
     public bug database. All feedback is welcome.</p>
 
     <!--END srcset-->
+    <!--END microdata-->
     <p>
       Work on extending this specification typically proceeds through
       <a href='http://www.w3.org/html/wg/wiki/ExtensionSpecifications'>extension specifications</a>
       which should be consulted to see what new features are being reviewed.
     </p>
     <!--START srcset-->
+    <!--START microdata-->
     <!--END database-->
        <!-- UNDER NO CIRCUMSTANCES IS THE FOLLOWING PARAGRAPH TO BE REMOVED OR EDITED WITHOUT TALKING TO IAN FIRST -->
        <p class="alt">The bulk of the text of this specification is also
@@ -89,6 +91,7 @@
     <!--START database-->
 
   <!-- UNDER NO CIRCUMSTANCES IS THE FOLLOWING PARAGRAPH TO BE REMOVED OR EDITED WITHOUT TALKING TO IAN FIRST -->  
+  <!--END microdata-->
   <p>The working groups maintains <a
   href="https://www.w3.org/Bugs/Public/buglist.cgi?list_id=11235&amp;query_format=advanced&amp;bug_status=NEW&amp;bug_status=ASSIGNED&amp;bug_status=REOPENED&amp;component=HTML5%20spec&amp;product=HTML%20WG">a
   list of all bug reports that the editors have not yet tried to
@@ -136,6 +139,7 @@
 <!--PUB-Y-->   if (getCookie('hide-obsolescence-warning') == '1') setTimeout(removeWIP, 2000);
 <!--PUB-Y-->  </script>
   </div>
+  <!--START microdata-->
 
 
   <p>Publication as a <!--INSERT FULLLONGSTATUS--> does not imply endorsement by the W3C Membership.
@@ -148,6 +152,7 @@
   href="https://github.com/w3c/html">the W3C HTML git repository</a>.
   </p>
 
+  <!--END microdata-->
   <!-- status of document, group responsible (required) -->
   <p>The W3C <a href="http://www.w3.org/html/wg/">HTML Working
   Group</a> is the W3C working group responsible for this
@@ -168,3 +173,4 @@
       <li>Annotated summary with unified diffs: <a href="http://html5.org/tools/web-apps-tracker">http://html5.org/tools/web-apps-tracker</a></li>
       <li>Raw Subversion interface: <code>svn checkout http://svn.whatwg.org/webapps/</code></li>
   </ul>
+  <!--START microdata-->
