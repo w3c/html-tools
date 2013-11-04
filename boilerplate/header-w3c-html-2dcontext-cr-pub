@@ -54,7 +54,7 @@
         <a href="#path-objects">Path objects</a>
       </li>
       <li>
-        All methods that operate on path objects: <a href="#dom-context-2d-fill">fill(path)</a>, <a href="#dom-context-2d-stroke">stroke(path)</a>, <a href="#dom-context-2d-clip">clip(path)</a>, <a href="#dom-context-2d-scrollpathintoview">scrollPathIntoView</a>, <a href="#dom-context-2d-ispointinpath">isPointInPath(Path path, ...)</a>, <a href="#dom-context-2d-drawsystemfocusring">drawSystemFocusRing(path, element)</a> and <a href="#dom-context-2d-drawcustomfocusring">drawCustomFocusRing(path, element)</a>
+        All methods that operate on path objects: <a href="#dom-context-2d-fill">fill(path)</a>, <a href="#dom-context-2d-stroke">stroke(path)</a>, <a href="#dom-context-2d-clip">clip(path)</a>, <a href="#dom-context-2d-scrollpathintoview">scrollPathIntoView</a>, <a href="#dom-context-2d-ispointinpath">isPointInPath(Path path, ...)</a>, <a href="#dom-context-2d-scrollpathintoview">scrollPathIntoView(path)</a>, <a href="#dom-context-2d-drawsystemfocusring">drawSystemFocusRing(path, element)</a> and <a href="#dom-context-2d-drawcustomfocusring">drawCustomFocusRing(path, element)</a>
       <li>
         <a href="#hit-regions">Hit regions</a>
       </li>
@@ -63,6 +63,9 @@
       </li>
       <li>
         <a href="#dom-context-2d-ellipse">Ellipse</a>
+      </li>
+      <li>
+        <a href="#dom-context-2d-scrollpathintoview">scrollPathIntoView()</a>
       </li>
       <li>
         Focus rings: <a href="#dom-context-2d-drawsystemfocusring">drawSystemFocusRing(element)</a> and <a href="#dom-context-2d-drawcustomfocusring">drawCustomFocusRing(element)</a>
