@@ -39,24 +39,6 @@
         ,   "LONGDAY":          "11 October"
         }
     }
-,   "microdata":    {
-        "path":     "../html"
-    ,   "branches": ["master"]
-    ,   "boilerplate": {
-            "master":   "header-w3c-html-microdata"
-        }
-    ,   "description":  "Microdata"
-    ,   "vars": {
-            "PUB":              "0"
-        ,   "SHORTSTATUS":      "ED"
-        ,   "URLSTATUS":        "ED"
-        ,   "LONGSTATUS":       "Editors' Draft"
-        ,   "FULLLONGSTATUS":   "Editors' Draft"
-        ,   "YEAR":             "2012"
-        ,   "SHORTDAY":         "1011"
-        ,   "LONGDAY":          "11 October"
-        }
-    }
 ,   "srcset":    {
         "path": "../html"
     ,   "branches": ["w3c-srcset"]
