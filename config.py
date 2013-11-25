@@ -12,18 +12,15 @@ def load_config ():
     config = load_json(default_config_file)
     if os.path.exists(local_config_file):
         local_config = load_json(local_config_file)
-        for k in local_config.keys():
-            if k in config:
-                if k == "vars":
-                    for n in local_config["vars"].keys():
-                        if n in config["vars"]:
-                            config["vars"][n].update(local_config["vars"][n])
-                        else:
-                            config["vars"][n] = local_config["vars"][n]
-                else:
-                    config[k].update(local_config[k])
+        for spec in local_config:
+            if spec in config:
+                for k in local_config[spec]:
+                    if k in config[spec] and type(config[spec][k]) is dict:
+                        config[spec][k].update(local_config[spec][k])
+                    else:
+                        config[spec][k] = local_config[spec][k]
             else:
-                config[k] = local_config[k]
+                config[spec] = local_config[spec]
     finger = "<span title='fingerprinting vector' class='fingerprint'><a href='introduction.html#used-to-fingerprint-the-user'><img src='images/fingerprint.png' alt='(This is a fingerprinting vector.)' width=15 height=21></a></span>"
     for spec in config:
         # set fingerprint universally

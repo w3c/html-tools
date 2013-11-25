@@ -2,7 +2,6 @@
 <!--SET TRNAME=html5-->
 <!--SET DEVURL=http://www.w3.org/html/wg/drafts/html/CR/-->
 <!--SET COMPONENT=HTML5 spec (editor: Ian Hickson)-->
-<!--SET FINGERPRINT=<span title="fingerprinting vector" class="fingerprint"><img src="images/fingerprint.png" alt="(This is a fingerprinting vector.)" width=46 height=64></span>-->
 <html lang="en-US-x-Hixie" data-wip="false">
   <head>
     <meta charset='utf-8'>
