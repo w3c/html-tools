@@ -24,7 +24,13 @@ def load_config ():
                     config[k].update(local_config[k])
             else:
                 config[k] = local_config[k]
+    finger = "<span title='fingerprinting vector' class='fingerprint'><a href='introduction.html#used-to-fingerprint-the-user'><img src='images/fingerprint.png' alt='(This is a fingerprinting vector.)' width=15 height=21></a></span>"
     for spec in config:
+        # set fingerprint universally
+        if spec == "html":
+            config[spec]["vars"]["FINGERPRINT"] = finger
+        else:
+            config[spec]["vars"]["FINGERPRINT"] = ""
         if config[spec].get("url", False): continue
         if not os.path.isabs(config[spec]["path"]): config[spec]["path"] = rel_to_me(config[spec]["path"], __file__)
         if config[spec].get("output", False):
