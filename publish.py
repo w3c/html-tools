@@ -3,6 +3,8 @@ import config, bs, boilerplate, parser_microsyntax
 from StringIO import StringIO
 from anolislib import generator, utils
 import html5lib
+from html5lib import treebuilders
+from lxml import etree
 
 def invoked_incorrectly():
     specs = config.load_config().keys()
@@ -128,10 +130,13 @@ Are you on the correct branch?\n" % spec)
     # replace data-x with data-anolis-xref
     print "fixing xrefs"
     filtered.seek(0)
-    fixing_xref_buffer = StringIO()
 
     # Parse
-    parser = html5lib.html5parser.HTMLParser(tree = html5lib.treebuilders.getTreeBuilder('lxml'))
+    builder = treebuilders.getTreeBuilder("lxml", etree)
+    try:
+        parser = html5lib.HTMLParser(tree=builder, namespaceHTMLElements=False)
+    except TypeError:
+        parser = html5lib.HTMLParser(tree=builder)
     tree = parser.parse(filtered, encoding='utf-8')
 
     # Move introduction above conformance requirements
@@ -140,17 +145,10 @@ Are you on the correct branch?\n" % spec)
         refel.attrib["data-anolis-xref"] = refel.get("data-x")
         del refel.attrib["data-x"]
 
-    # Serialize
-    tokens = html5lib.treewalkers.getTreeWalker('lxml')(tree)
-    serializer = html5lib.serializer.HTMLSerializer(quote_attr_values=True, inject_meta_charset=False)
-    for text in serializer.serialize(tokens, encoding='utf-8'):
-        fixing_xref_buffer.write(text)
-
-    filtered = fixing_xref_buffer
-
     print 'indexing'
-    filtered.seek(0)
-    tree = generator.fromFile(filtered, **opts)
+    # filtered.seek(0)
+    # tree = generator.fromFile(filtered, **opts)
+    generator.process(tree, **opts)
     filtered.close()
 
     # fixup nested dd's and dt's produced by lxml
