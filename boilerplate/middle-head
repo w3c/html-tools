@@ -377,8 +377,8 @@
   <!--END srcset-->
   <!--END microdata-->
   <!-- style switcher script by Stommepoes  -->
-  <link title="Author documentation only" media="screen,projection" rel="alternate stylesheet" id="authors" href="switcher/teststylesheet.css">
-  <script src="switcher/authorstylesheet.js" type="text/javascript"></script>
+  <link href="switcher/author-view.css" id="author-view" rel="alternate stylesheet" title="Author documentation only">
+  <script src="switcher/authorstylesheet.js"></script>
   <!--START microdata-->
   <!--START 2dcontext-->
   <!--START srcset-->
