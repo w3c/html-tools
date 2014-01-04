@@ -215,8 +215,7 @@
        .annotation :link:hover, .annotation :visited:hover { background: transparent; }
        .annotation span { border: none ! important; }
        .note { border-left-style: solid; border-left-width: 0.25em; background: none repeat scroll 0 0 #E9FBE9; border-color: #52E052; }
-       .warning { color: red; background: transparent; }
-       .warning { font-weight: bolder; font-style: italic; }
+       .warning { background-color: #F9F0D4; border: medium double #FF0000; margin: 1em; padding: 1em; }
        .note em, .warning em, .note i, .warning i { font-style: normal; }
        p.note, div.note { padding: 0.5em 2em; }
        span.note { padding: 0 2em; }
