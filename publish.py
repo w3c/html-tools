@@ -163,6 +163,14 @@ Are you on the correct branch?\n" % spec)
         else:
             dt.getparent().remove(dt)
 
+    # remove unused references
+    for dt in tree.findall("//dt[@id]"):
+        refID = dt.get("id")
+        if refID.startswith("refs") and len(tree.findall("//a[@href='#%s']" % refID)) == 0:
+            # print "Removing %s" % refID
+            dt.getparent().remove(dt.getnext())
+            dt.getparent().remove(dt)
+
     if spec == "microdata":
         print 'munging (after anolis)'
         # get the h3 for the misplaced section (it has no container)
