@@ -167,7 +167,6 @@ Are you on the correct branch?\n" % spec)
     for dt in tree.findall("//dt[@id]"):
         refID = dt.get("id")
         if refID.startswith("refs") and len(tree.findall("//a[@href='#%s']" % refID)) == 0:
-            # print "Removing %s" % refID
             dt.getparent().remove(dt.getnext())
             dt.getparent().remove(dt)
 
