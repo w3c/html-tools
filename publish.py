@@ -3,6 +3,7 @@ import config, bs, boilerplate, parser_microsyntax
 from StringIO import StringIO
 from anolislib import generator, utils
 import html5lib
+from html5lib.constants import spaceCharacters
 from html5lib import treebuilders
 from lxml import etree
 
@@ -10,6 +11,28 @@ def invoked_incorrectly():
     specs = config.load_config().keys()
     sys.stderr.write("Usage: python %s [%s]\n" % (sys.argv[0],'|'.join(specs)))
     exit()
+
+spaceCharacters = "".join(spaceCharacters)
+spacesRegex = re.compile("[%s]+" % spaceCharacters)
+non_ifragment = re.compile("[^A-Za-z0-9._~!$&'()*+,;=:@/\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF\U00010000-\U0001FFFD\U00020000-\U0002FFFD\U00030000-\U0003FFFD\U00040000-\U0004FFFD\U00050000-\U0005FFFD\U00060000-\U0006FFFD\U00070000-\U0007FFFD\U00080000-\U0008FFFD\U00090000-\U0009FFFD\U000A0000-\U000AFFFD\U000B0000-\U000BFFFD\U000C0000-\U000CFFFD\U000D0000-\U000DFFFD\U000E1000-\U000EFFFD]+")
+def generateID(source, tree):
+    source = source.strip(spaceCharacters).lower()
+
+    if source == "":
+        source = "generatedID"
+    else:
+        source = non_ifragment.sub("-", source).strip("-")
+        if source == "":
+            source = "generatedID"
+
+    # Initally set the id to the source
+    id = source
+
+    i = 0
+    while utils.getElementById(tree, id) is not None:
+        id = "%s-%i" % (source, i)
+        i += 1
+    return id
 
 def main(spec, spec_dir, branch="master"):
     conf = None
@@ -141,8 +164,11 @@ Are you on the correct branch?\n" % spec)
 
     # Move introduction above conformance requirements
     data_x = tree.findall("//*[@data-x]")
+    non_alphanumeric_spaces = re.compile(r"[^a-zA-Z0-9 \-\_\/\|]+")
     for refel in data_x:
         refel.attrib["data-anolis-xref"] = refel.get("data-x")
+        if refel.tag == "dfn" and not refel.get("id", False):
+            refel.attrib["id"] = generateID(refel.attrib["data-anolis-xref"], refel.getroottree().getroot())
         del refel.attrib["data-x"]
 
     print 'indexing'
