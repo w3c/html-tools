@@ -15,7 +15,7 @@ def invoked_incorrectly():
 spaceCharacters = "".join(spaceCharacters)
 spacesRegex = re.compile("[%s]+" % spaceCharacters)
 non_ifragment = re.compile("[^A-Za-z0-9._~!$&'()*+,;=:@/\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF\U00010000-\U0001FFFD\U00020000-\U0002FFFD\U00030000-\U0003FFFD\U00040000-\U0004FFFD\U00050000-\U0005FFFD\U00060000-\U0006FFFD\U00070000-\U0007FFFD\U00080000-\U0008FFFD\U00090000-\U0009FFFD\U000A0000-\U000AFFFD\U000B0000-\U000BFFFD\U000C0000-\U000CFFFD\U000D0000-\U000DFFFD\U000E1000-\U000EFFFD]+")
-def generateID(source, tree):
+def generateID(source, el):
     source = source.strip(spaceCharacters).lower()
 
     if source == "":
@@ -29,9 +29,10 @@ def generateID(source, tree):
     id = source
 
     i = 0
-    while utils.getElementById(tree, id) is not None:
+    while utils.getElementById(el.getroottree().getroot(), id) is not None:
         id = "%s-%i" % (source, i)
         i += 1
+    utils.ids[el.getroottree().getroot()][id] = el
     return id
 
 def main(spec, spec_dir, branch="master"):
@@ -167,9 +168,10 @@ Are you on the correct branch?\n" % spec)
     non_alphanumeric_spaces = re.compile(r"[^a-zA-Z0-9 \-\_\/\|]+")
     for refel in data_x:
         refel.attrib["data-anolis-xref"] = refel.get("data-x")
-        if refel.tag == "dfn" and not refel.get("id", False):
-            refel.attrib["id"] = generateID(refel.attrib["data-anolis-xref"], refel.getroottree().getroot())
+        if refel.tag == "dfn" and not refel.get("id", False) and refel.attrib["data-anolis-xref"]:
+            refel.attrib["id"] = generateID(refel.attrib["data-anolis-xref"], refel)
         del refel.attrib["data-x"]
+    # utils.ids = {}
 
     print 'indexing'
     # filtered.seek(0)
