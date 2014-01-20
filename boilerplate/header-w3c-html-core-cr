@@ -42,6 +42,69 @@
 
   <h2 class="no-num no-toc">Status of This document</h2>
 <!--BOILERPLATE middle-feedback-->
+
+  <p>
+    This document was published by the HTML Working Group as an updated revision to the Candidate
+    Recommendation
+    (<a href="http://www.w3.org/TR/2013/CR-html5-20130806/">http://www.w3.org/TR/2013/CR-html5-20130806/</a>).
+    This document is intended to become a W3C Recommendation. W3C publishes a Candidate
+    Recommendation to indicate that the document is believed to be stable and to encourage
+    implementation by the developer community. This Candidate Recommendation is expected to advance
+    to Proposed Recommendation no earlier than 01 September 2014. All feedback is welcome.
+  </p>
+  <p>
+    For this specification to exit the CR stage, the conditions detailed in the
+    <a href="http://dev.w3.org/html5/decision-policy/public-permissive-exit-criteria.html">CR Exit
+    Criteria (Public Permissive version 3)</a> document will have to be met.
+  </p>
+  <div>
+    <p>
+      The following features are <strong>at risk</strong> and may be removed due to lack of
+      implementation.
+    </p>
+    <ul><li>
+        <a href="browsers.html#appcache">Application Cache</a>
+      </li>
+      <li>
+        <a href="interactive-elements.html#the-dialog-element">&lt;dialog&gt;</a>
+      </li>
+      <li>
+        <a href="interactive-elements.html#the-details-element">&lt;details&gt;</a> and 
+        <a href="interactive-elements.html#the-summary-element">&lt;summary&gt;</a>
+      </li>
+      <li>
+        <a href="forms.html#color-state-(type=color)">&lt;input type=color&gt;</a>
+      </li>
+      <li>
+        <a href="forms.html#date-and-time-state-(type=datetime)">&lt;input type=datetime&gt;</a>, 
+        <a href="forms.html#month-state-(type=month)">&lt;input type=month&gt;</a>, 
+        <a href="forms.html#week-state-(type=week)">&lt;input type=week&gt;</a>, 
+        <a href="forms.html#time-state-(type=time)">&lt;input type=time&gt;</a>, 
+        <a href="forms.html#local-date-and-time-state-(type=datetime-local)">&lt;input
+          type=datetime-local&gt;</a>
+      </li>
+      <li>
+        <a href="forms.html#the-output-element">&lt;output&gt;</a>
+      </li>
+      <li>
+        <a href="document-metadata.html#attr-style-scoped">&lt;style scoped&gt;</a>
+      </li>
+      <li>
+        <a href="embedded-content-0.html#attr-iframe-seamless">&lt;iframe seamless&gt;</a>
+      </li>
+      <li>
+        <a href="webappapis.html#custom-handlers">Custom scheme and content handlers 
+        (registerProtocolHandler and registerContentHandler)</a>
+      </li>
+      <li>
+        <a href="sections.html#outlines">Outline algorithm</a>
+      </li>
+      <li>
+        <a href="rendering.html#links,-forms,-and-navigation">UA mechanism for navigating to
+        resources linked to in cite=""</a>, 
+        see <a href="https://www.w3.org/Bugs/Public/show_bug.cgi?id=18915">Bug 18915</a> for more.
+      </li>
+    </ul></div>
 <!--BOILERPLATE middle-w3c-html-pp-->
 
   <h2 class="no-num no-toc" id="contents">Table of Contents</h2>
