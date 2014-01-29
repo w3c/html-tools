@@ -230,7 +230,7 @@ Are you on the correct branch?\n" % spec)
         target.addprevious(reflect_the_content_attribute)
 
         # Move "The IDL attribute complete must return true..."
-        note_about_complete = tree.findall("//p[@class='note']")[5]
+        note_about_complete = tree.findall("//p[@class='note']")[4]
         p_otherwise = note_about_complete.xpath("preceding-sibling::p[position()=1]")[0]
         ul_conditions = p_otherwise.xpath("preceding-sibling::ul[position()=1]")[0]
         p_start = ul_conditions.xpath("preceding-sibling::p[position()=1]")[0]
