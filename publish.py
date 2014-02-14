@@ -292,12 +292,20 @@ Are you on the correct branch?\n" % spec)
     def copy_dependencies (targets):
         import types
         if not isinstance(targets, types.ListType): targets = [targets]
-        for target in targets:
-            os.system("/bin/csh -i -c '/bin/cp -R %s %s'" % (os.path.join(conf["path"], target), spec_dir))
+        if os.name == "nt":
+            for target in targets:
+                os.system("xcopy /s %s %s" % (os.path.join(conf["path"], target), spec_dir))
+        else:
+            for target in targets:
+                os.system("/bin/csh -i -c '/bin/cp -R %s %s'" % (os.path.join(conf["path"], target), spec_dir))
 
     print "copying"
     if spec == "html":
-        copy_dependencies(["images", "fonts", "404/*", "switcher", "js"])
+        if os.name == "nt":
+            dirs = ["images", "fonts", "404", "switcher", "js"]
+        else:
+            dirs = ["images", "fonts", "404/*", "switcher", "js"]
+        copy_dependencies(dirs)
     elif spec == "2dcontext":
         copy_dependencies(["images", "fonts"])
     else:
