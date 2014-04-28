@@ -21,10 +21,9 @@
     }
 ,   "2dcontext":    {
         "path":     "../html"
-    ,   "branches": ["html5_canvas_CR", "html5_canvas", "master"]
+    ,   "branches": ["html5_canvas_CR", "master"]
     ,   "boilerplate": {
-            "html5_canvas":     "header-w3c-html-2dcontext"
-        ,   "master":           "header-w3c-html-2dcontext"
+            "master":           "header-w3c-html-2dcontext"
         ,   "html5_canvas_CR":  "header-w3c-html-2dcontext-cr"
         }
     ,   "description":  "Canvas 2D Context"
