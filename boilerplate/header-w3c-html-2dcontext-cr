@@ -33,6 +33,13 @@
   <h2 class="no-num no-toc">Status of This document</h2>
 
 <!--BOILERPLATE middle-feedback-->
+  <p>This draft incorporates changes made by the <a href="https://www.w3.org/WAI/PF/HTML/wiki/Canvas">Canvas Accessibility Sub-Group</a> (<a
+  href="https://www.w3.org/WAI/PF/HTML/wiki/Canvas/Meetings/Minutes#Canvas_Accessibility_Teleconferences:_2014">minutes</a>)
+  in response to <a
+  href="http://lists.w3.org/Archives/Public/public-html-admin/2013Sep/0013.html">feedback
+  from the HTML Accessibility Task Force</a> and adds support for visual focus indicators (<a href="#dom-context-2d-drawfocusifneeded">drawFocusIfNeeded()</a>)
+  and a method for updating the accessibility API of the location of fallback elements that are representative of the corresponding hit region location (<a href="#hit-regions">Hit Regions</a>).  These features were designed to be forward compatible with <a href="http://www.w3.org/TR/2013/WD-2dcontext2-20131029/#hit-regions">Canvas 2D Context, Level 2</a>.
+</p>
 <!--BOILERPLATE middle-w3c-html-module-status-->
 <!--BOILERPLATE middle-w3c-html-pp-->
 
