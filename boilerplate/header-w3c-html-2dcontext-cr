@@ -10,8 +10,8 @@
     <h1>HTML Canvas 2D Context</h1>
     <h2 class="no-num no-toc"></h2>
 <!--BOILERPLATE middle-w3c-version-->
-      <dt>Previous Versions:</dt>
-      <dd><a href='http://www.w3.org/TR/2012/CR-2dcontext-20121217/'>http://www.w3.org/TR/2012/CR-2dcontext-20121217/</a></dd>
+      <dt>Previous Version:</dt>
+      <dd><a href='http://www.w3.org/TR/2013/CR-2dcontext-20130806/'>http://www.w3.org/TR/2013/CR-2dcontext-20130806/</a></dd>
       <dt id='specification-editors'>Editors:</dt>
       <dd>W3C:</dd>
       <dd><a href="mailto:cabanier@adobe.com">Rik Cabanier</a>, Adobe Systems, Inc.</dd>
@@ -33,6 +33,19 @@
   <h2 class="no-num no-toc">Status of This document</h2>
 
 <!--BOILERPLATE middle-feedback-->
+  <p>
+    This document was published by the <a href="http://www.w3.org/html/wg/">HTML Working Group</a> as
+    a Candidate Recommendation. This document is intended to become a
+    <abbr title="World Wide Web Consortium">W3C</abbr> Recommendation.
+    <abbr title="World Wide Web Consortium">W3C</abbr> publishes a Candidate Recommendation to indicate that the document
+    is believed to be stable and to encourage implementation by the developer community. This Candidate Recommendation is
+    expected to advance to Proposed Recommendation no earlier than 17 June 2014. All feedback is welcome.
+
+  <p>
+    For this specification to exit the CR stage, the conditions detailed in the
+    <a href='http://dev.w3.org/html5/decision-policy/public-permissive-exit-criteria.html'>CR Exit Criteria (Public Permissive version 3)</a>
+    document will have to be met.
+
   <p>This draft incorporates changes made by the <a href="https://www.w3.org/WAI/PF/HTML/wiki/Canvas">Canvas Accessibility Sub-Group</a> (<a
   href="https://www.w3.org/WAI/PF/HTML/wiki/Canvas/Meetings/Minutes#Canvas_Accessibility_Teleconferences:_2014">minutes</a>)
   in response to <a
