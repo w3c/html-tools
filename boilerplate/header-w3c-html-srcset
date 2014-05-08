@@ -46,7 +46,6 @@
     <p>The following features are <strong>at risk</strong> and may be
     removed due to lack of implementation.</p>
     <ul>
-      <li>the <i>height descriptor</i> and  <i>height descriptor value</i>;</li>
       <li>the <i>width descriptor</i> and  <i>width descriptor value</i>.</li>
     </ul>
   </div>
