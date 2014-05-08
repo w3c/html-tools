@@ -156,7 +156,7 @@
   <p>The W3C <a href="http://www.w3.org/html/wg/">HTML Working
   Group</a> is the W3C working group responsible for this
   specification's progress.
-<!--PUB-Y-->  This specification is the <!--INSERT LONGDAY--> <!--INSERT YEAR--> <!--INSERT LONGSTATUS-->.
+<!--PUB-Y-->  This specification is the <!--INSERT LONGDAY--> <!--INSERT YEAR--> <!--INSERT FULLLONGSTATUS-->.
 <!--PUB-N-->  This specification is the [DATE 1 January 1970] Editor's Draft.
     <!--END microdata-->
     This specification is intended to become a W3C Recommendation.
