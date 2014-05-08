@@ -28,7 +28,6 @@
       <a href='http://www.w3.org/html/wg/wiki/ExtensionSpecifications'>extension specifications</a>
       which should be consulted to see what new features are being reviewed.
     </p>
-    <!--START srcset-->
     <!--START microdata-->
     <!--END database-->
        <!-- UNDER NO CIRCUMSTANCES IS THE FOLLOWING PARAGRAPH TO BE REMOVED OR EDITED WITHOUT TALKING TO IAN FIRST -->
@@ -37,7 +36,6 @@
        <!--END w3c-html-->
        <!--END microdata-->
        <!--END 2dcontext-->
-       <!--END srcset-->
        <!--END postmsg-->
        <!--END html-device-->
        <!--END websocket-api-->
@@ -54,9 +52,6 @@
          <!--START 2dcontext-->
            href="http://www.whatwg.org/specs/web-apps/current-work/complete.html#2dcontext"
          <!--END 2dcontext-->
-         <!--START srcset-->
-           href="http://www.whatwg.org/specs/web-apps/current-work/complete.html#the-img-element"
-         <!--END srcset-->
          <!--START postmsg-->
            href="http://www.whatwg.org/specs/web-apps/current-work/complete.html#comms"
          <!--END postmsg-->
@@ -78,7 +73,6 @@
        <!--START w3c-html-->
        <!--START microdata-->
        <!--START 2dcontext-->
-       <!--START srcset-->
        <!--START postmsg-->
        <!--START html-device-->
        <!--START websocket-api-->
@@ -106,6 +100,7 @@
   <!-- UNDER NO CIRCUMSTANCES IS THE PRECEDING PARAGRAPH TO BE REMOVED OR EDITED WITHOUT TALKING TO IAN FIRST -->
 
 
+  <!--START srcset-->
   <!-- stability (required) -->
   <p>Implementors should be aware that this specification is not
   stable. <strong>Implementors who are not taking part in the
@@ -165,6 +160,8 @@
   <!--END microdata-->
 
   <!-- relationship to other work (required) -->
+
+  <!--END srcset-->
   <p>Work on this specification is also done at the <a
   href="http://www.whatwg.org/">WHATWG</a>. The W3C HTML working group actively pursues convergence of the 
   HTML specification with the WHATWG living standard, within the bounds of the <a
@@ -175,4 +172,5 @@
       <li>Annotated summary with unified diffs: <a href="http://html5.org/tools/web-apps-tracker">http://html5.org/tools/web-apps-tracker</a></li>
       <li>Raw Subversion interface: <code>svn checkout http://svn.whatwg.org/webapps/</code></li>
   </ul>
+  <!--START srcset-->
   <!--START microdata-->
