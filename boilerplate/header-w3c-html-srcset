@@ -35,6 +35,22 @@
 
 <!--BOILERPLATE middle-feedback-->
 <!--BOILERPLATE middle-w3c-html-module-status-->
+
+  <p>Work on this specification was formerly done at the <a href="http://www.whatwg.org/">WHATWG</a>
+  in its HTML Living Standard. As of <a
+  href="http://html5.org/tools/web-apps-tracker?from=8611&to=8612">r8612</a>, the Living Standard
+  pulls in an external document for the definition of the <code>img</code> element. This
+  specification is based on the relevant sections of the Living Standard prior to that change.</p>
+
+  <div>
+    <p>The following features are <strong>at risk</strong> and may be
+    removed due to lack of implementation.</p>
+    <ul>
+      <li>the <i>height descriptor</i> and  <i>height descriptor value</i>;</li>
+      <li>the <i>width descriptor</i> and  <i>width descriptor value</i>.</li>
+    </ul>
+  </div>
+
 <!--BOILERPLATE middle-w3c-html-pp-->
 
   <h2 class="no-num no-toc" id="contents">Table of Contents</h2>
