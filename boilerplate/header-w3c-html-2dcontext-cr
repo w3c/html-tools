@@ -89,7 +89,7 @@
             and
             <code>region</code>
             were removed from the <code>HitRegionOptions</code>
-            dictonary.
+            dictionary.
           <li>The <code>scrollPathIntoView()</code> method was removed.
           <li>The <code>drawCustomFocusRing()</code> method was removed.
         </ul>
