@@ -1,4 +1,4 @@
-<!--PUB-Y-->   <h2 class="no-num no-toc">W3C <!--INSERT LONGSTATUS--> <!--INSERT LONGDAY--> <!--INSERT YEAR--></h2>
+<!--PUB-Y-->   <h2 class="no-num no-toc">W3C <!--INSERT FULLLONGSTATUS--> <!--INSERT LONGDAY--> <!--INSERT YEAR--></h2>
 <!--PUB-N-->   <p class="no-num no-toc subline">Editor's Draft [DATE 1 January 1970]</p>
    </header>
 <dl>
