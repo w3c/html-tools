@@ -46,7 +46,8 @@ def main(stdin, stdout, select='w3c-html', branch="master"):
   content =  header.decode("utf8") + source.decode("utf8")
   content = re.sub('<!--SET (\w+)=(.*?)-->\n?', vset, content)
   content = re.sub('<!--INSERT (\w+)-->', lambda n: vars[n.group(1)], content)
-
+  content = re.sub('<!--\s?NON-NORMATIVE SECTION\s?-->', '<p><i>This section is non-normative.</i></p>', content)
+  
   def adjust_headers(text, delta, pos, endpos=None):
     def adjust_header(match):
       slash = match.group(1)
