@@ -192,6 +192,7 @@ Are you on the correct branch?\n" % spec)
             dt.getparent().remove(dt)
 
     # remove unused references
+    print "processing references"
     for dt in tree.findall("//dt[@id]"):
         refID = dt.get("id")
         if refID.startswith("refs") and len(tree.findall("//a[@href='#%s']" % refID)) == 0:
@@ -200,6 +201,20 @@ Are you on the correct branch?\n" % spec)
                 next = next.getnext()
             dt.getparent().remove(next)
             dt.getparent().remove(dt)
+        elif refID.startswith("refs"):
+            dd = dt.getnext()
+            while dd.tag != "dd":
+                dd = dd.getnext()
+            links = dd.findall(".//a[@href]")
+            for link in links:
+                if link is not None:
+                    wrap = link.getparent()
+                    link.tail = " (URL: "
+                    idx = wrap.index(link)
+                    url = etree.Element("a", href=link.get("href"))
+                    url.text = link.get("href")
+                    wrap.insert(idx + 1, url)
+                    url.tail = ")"
 
     if spec == "microdata":
         print 'munging (after anolis)'
