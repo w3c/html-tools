@@ -53,10 +53,11 @@
     intended to become a W3C Recommendation.
   </p>
   <p>
-    The scope of Last Call feedback on this specification is limited to changes that have taken
-    place during the Candidate Recommendation phase. The Last Call period is expected to finish on
-    15 July 2014. Once Last Call comments are addressed, the Working Group expects to advance this
-    draft to Proposed Recommendation.
+    The scope of Last Call feedback on this specification is limited to 
+    <a href='https://www.w3.org/Bugs/Public/buglist.cgi?chfield=bug_status&amp;chfieldfrom=2012-12-17&amp;chfieldto=2014-06-17&amp;chfieldvalue=RESOLVED&amp;component=HTML5%20spec&amp;list_id=38737&amp;product=HTML%20WG&amp;query_format=advanced'>changes
+    that have taken place during the Candidate Recommendation phase</a>. The Last Call period is
+    expected to finish on 15 July 2014. Once Last Call comments are addressed, the Working Group
+    expects to advance this draft to Proposed Recommendation.
   </p>
   <p>
     If you wish to make comments regarding this document in a manner that is tracked by the W3C,
@@ -77,12 +78,6 @@
     The bulk of the text of this specification is also available in the WHATWG 
     <a href='href="http://www.whatwg.org/specs/web-apps/current-work/complete.html"'>HTML Living 
     Standard</a>, under a license that permits reuse of the specification text.
-  </p>
-  <p>
-    The HTML Working Group maintains a <a
-    href="https://www.w3.org/Bugs/Public/buglist.cgi?list_id=11235&amp;query_format=advanced&amp;bug_status=NEW&amp;bug_status=ASSIGNED&amp;bug_status=REOPENED&amp;component=HTML5%20spec&amp;product=HTML%20WG">list of
-    all bug reports that the editors have not yet tried to address</a>. You are very welcome to file
-    a new bug for any problem you may encounter.
   </p>
   <div id="multipage-common">
 <!--PUB-Y-->  <p class="stability" id="wip"><strong>This is a work in
