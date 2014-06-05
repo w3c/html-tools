@@ -132,10 +132,6 @@
   <ul>
     <li><a href="embedded-content-0.html#datacue">the <code>DataCue</code> interface;</a></li>
     <li><a href="forms.html#time-state-(type=time)">&lt;input type=time&gt;</a>;</li>
-    <li>
-      <a href="browsers.html#sandboxing">Sandboxing</a> and the <a
-      href='embedded-content-0.html#attr-iframe-sandbox'>sandbox</a> attribute;
-    </li>
     <li><a href="editing.html#dnd">drag and drop</a>;</li>
     <li><a href="text-level-semantics.html#the-ruby-element">the new ruby model</a>.</li>
   </ul>
