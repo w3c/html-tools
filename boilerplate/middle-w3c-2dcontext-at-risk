@@ -4,16 +4,16 @@
   </p>
   <ul>
     <li>
-      The following methods that operate on Path2D objects: <a href="#dom-context-2d-addtext">addText(path, ...)</a>, and <a href="#dom-context-2d-addPathByStrokingText">addPathByStrokingText(path, styles, ...)</a>
+      The following methods that operate on Path2D objects: <a href="#dom-path2d-addtext">addText(path, ...)</a>, <a href="#dom-path2d-addPathByStrokingPath">addPathByStrokingPath(path, styles, ...)</a>, and <a href="#dom-path2d-addPathByStrokingText">addPathByStrokingText(path, styles, ...)</a>
 	</li>
     <li>
-	  The fillRule constructor for Path2D: <a href="#dom-context-2d-path2d">Path2D(path [, fillRule])</a>
+	  The fillRule constructor for Path2D: <a href="#dom-path2d-merge">Path2D(path [, fillRule])</a>
 	</li>	
     <li>
       <a href="#drawingstyle">DrawingStyle</a>
     </li>
 	<li>
-      <a href="#resetclip">resetClip</a>
+      <a href="#dom-context-2d-resetclip">resetClip</a>
     </li>
     <li>
       All attributes of the <a href="#textmetrics">Text metrics</a> object except <a href="#dom-textmetrics-width">'width'</a>
@@ -22,7 +22,7 @@
       <a href="#dom-context-2d-ellipse">Ellipse</a>
     </li>
     <li>
-      The constructor for <a href="#dom-context-2d-canvasrenderingcontext2d">CanvasRenderingContext2D</a>
+      The constructor for <a href="#canvasrenderingcontext2d">CanvasRenderingContext2D</a>
     </li>
 	<li>
 	  The <a href="#dom-context-2d-commit">Commit</a>  method and all related language
