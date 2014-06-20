@@ -21,7 +21,7 @@ def load_config ():
                         config[spec][k] = local_config[spec][k]
             else:
                 config[spec] = local_config[spec]
-    finger = "<span title='fingerprinting vector' class='fingerprint'><a href='introduction.html#used-to-fingerprint-the-user'><img src='images/fingerprint.png' alt='(This is a fingerprinting vector.)' width=15 height=21></a></span>"
+    finger = "<span title='fingerprinting vector' class='fingerprint'><a href='introduction.html#fingerprinting-vector'><img src='images/fingerprint.png' alt='(This is a fingerprinting vector.)' width=15 height=21></a></span>"
     for spec in config:
         # set fingerprint universally
         if spec == "html":

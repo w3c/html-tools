@@ -49,7 +49,7 @@
   <p>
     The W3C <a href="http://www.w3.org/html/wg/">HTML Working Group</a> is the W3C working group
     responsible for this specification's progress. This specification is the <!--INSERT LONGDAY-->
-    <!--INSERT YEAR--> <!--INSERT FULLLONGSTATUS--> Last Call Working Draft. This specification is
+    <!--INSERT YEAR--> <!--INSERT FULLLONGSTATUS-->. This specification is
     intended to become a W3C Recommendation.
   </p>
   <p>
@@ -76,7 +76,7 @@
   </p>
   <p>
     The bulk of the text of this specification is also available in the WHATWG 
-    <a href='href="http://www.whatwg.org/specs/web-apps/current-work/complete.html"'>HTML Living 
+    <a href='http://www.whatwg.org/specs/web-apps/current-work/complete.html'>HTML Living 
     Standard</a>, under a license that permits reuse of the specification text.
   </p>
   <div id="multipage-common">
