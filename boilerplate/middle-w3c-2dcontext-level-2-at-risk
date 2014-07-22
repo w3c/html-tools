@@ -1,4 +1,11 @@
 <div>
+  <p>Implementors should be aware that this specification is not
+  stable. <strong>Implementors who are not taking part in the
+  discussions are likely to find the specification changing out from
+  under them in incompatible ways.</strong> Vendors interested in
+  implementing this specification before it eventually reaches the
+  Candidate Recommendation stage should join the aforementioned
+  mailing lists and take part in the discussions.</p>
   <p>
     The following features are <strong>experimental</strong> and have not been discussed by the working group or implemented.
   </p>
