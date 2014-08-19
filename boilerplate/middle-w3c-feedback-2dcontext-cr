@@ -29,8 +29,8 @@
   <a href="http://dev.w3.org/html5/decision-policy/public-permissive-exit-criteria.html">
   CR Exit Criteria (Public Permissive version 3)</a> document will have to be met.</p>
   
-  <p>A preliminary <a href="http://w3c.github.io/test-results/html/details.html">
-  implementation report</a> is available, but we expect it to evolve significantly 
+  <p>Preliminary <a href="https://github.com/w3c/test-results/tree/gh-pages/2dcontext">
+  implementation reports</a> are available, but we expect them to evolve significantly 
   between now and Recommendation.</p> 
 
   <!--END srcset-->
