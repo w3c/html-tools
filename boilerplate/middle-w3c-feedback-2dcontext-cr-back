@@ -1,0 +1,52 @@
+
+  <p>Publication as a Candidate Recommendation does not imply endorsement by the W3C Membership.
+  This is a draft document and may be updated, replaced or obsoleted by other documents at
+  any time. It is inappropriate to cite this document as other than work in progress.</p>
+
+  <p>
+    For this specification to exit the CR stage, the conditions detailed in the 
+    <a href='http://dev.w3.org/html5/decision-policy/public-permissive-exit-criteria.html'>CR Exit 
+    Criteria (Public Permissive version 3)</a> document will have to be met.
+  </p>
+
+  <!-- UNDER NO CIRCUMSTANCES IS THE FOLLOWING PARAGRAPH TO BE REMOVED OR EDITED WITHOUT TALKING TO THE EDITORS FIRST -->
+  <!-- version history or list of changes (required) -->
+  <p>The latest stable version of the editor's draft of this
+  specification is always available on <a
+  href="http://dev.w3.org/html5/">the W3C CVS server</a>.
+  There are various ways to follow the change history for this specification:
+  </p>
+  <dl>
+   <dt>Browsable version-control record of all changes:</dt>
+   <dd>Github repository (real-time updates): <a href="https://github.com/w3c/html/commits/master">https://github.com/w3c/html/commits/master</a></dd>
+   <dd>CVSWeb interface (hourly updates): <a href="http://dev.w3.org/cvsweb/html5/spec/">http://dev.w3.org/cvsweb/html5/spec/</a></dd>
+   <dt>E-mail notifications of changes:</dt>
+   <dd>HTML-Commits mailing list (commit notifications for dev.w3.org/html5): <a href="http://lists.w3.org/Archives/Public/public-html-commits/latest">http://lists.w3.org/Archives/Public/public-html-commits/latest</a></dd>
+  </dl>
+  <!-- UNDER NO CIRCUMSTANCES IS THE PRECEDING LIST TO BE REMOVED OR EDITED WITHOUT TALKING TO THE EDITORS FIRST -->
+
+  <!-- status of document, group responsible (required) -->
+  <p>
+    This document was published by the <a href="http://www.w3.org/html/wg/">HTML Working Group</a> as 
+    a Candidate Recommendation. This document is intended to become a 
+    <abbr title="World Wide Web Consortium">W3C</abbr> Recommendation. 
+    <abbr title="World Wide Web Consortium">W3C</abbr> publishes a Candidate Recommendation to indicate that the document 
+    is believed to be stable and to encourage implementation by the developer community. This Candidate Recommendation is 
+    expected to advance to Proposed Recommendation no earlier than 17 June 2013. All feedback is welcome.
+  </p>
+
+
+  <!-- UNDER NO CIRCUMSTANCES IS THE PRECEDING PARAGRAPH TO BE REMOVED OR EDITED WITHOUT TALKING TO THE EDITORS FIRST -->
+  <!-- relationship to other work (required) -->
+  <p>Work on this specification is also done at the <a
+  href="http://www.whatwg.org/">WHATWG</a>. The W3C HTML working group
+  actively pursues convergence with the WHATWG, as required by the <a
+  href="http://www.w3.org/2007/03/HTML-WG-charter">W3C HTML working
+  group charter</a>. There are various ways to follow this work at the WHATWG:</p>
+  <ul>
+      <li>Commit-Watchers mailing list (complete source diffs): <a href="http://lists.whatwg.org/listinfo.cgi/commit-watchers-whatwg.org">http://lists.whatwg.org/listinfo.cgi/commit-watchers-whatwg.org</a></li>
+      <li>Annotated summary with unified diffs: <a href="http://html5.org/tools/web-apps-tracker">http://html5.org/tools/web-apps-tracker</a></li>
+      <li>Raw Subversion interface: <code>svn checkout http://svn.whatwg.org/webapps/</code></li>
+  </ul>
+  <!-- UNDER NO CIRCUMSTANCES IS THE FOLLOWING PARAGRAPH TO BE REMOVED OR EDITED WITHOUT TALKING TO THE EDITORS FIRST -->
+
