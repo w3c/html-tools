@@ -111,21 +111,7 @@
     <!--START database-->
 
   <!--END microdata-->
-  <!--
-  <p>The working groups maintains <a
-  href="https://www.w3.org/Bugs/Public/buglist.cgi?component=HTML%20Canvas%202D%20Context&list_id=41062&product=HTML%20WG&resolution=---">a
-  list of all bug reports that the editors have not yet tried to
-  address</a> and <a
-  href="http://www.w3.org/html/wg/tracker/products/1">a list of issues
-  for which the chairs have not yet declared a decision</a>.
-  You are very welcome to <a href='https://www.w3.org/Bugs/Public/enter_bug.cgi?product=HTML%20WG&amp;component=HTML5%20spec&amp;priority=P3'>file a new bug</a>
-  for any problem you may encounter.
-   These bugs and
-  issues apply to multiple HTML-related specifications,
-  not just this one.</p>
-  --> <!-- removed, not in HTML5 spec -->
-
-
+  
   <!--START srcset-->
   <!-- stability (required) -->
 
