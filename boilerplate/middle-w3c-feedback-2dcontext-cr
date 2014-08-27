@@ -59,34 +59,30 @@
   expected to advance to Proposed Recommendation no earlier than 09 September 2014. All feedback is welcome. 
    
 
-  <!--START srcset-->
   <!-- stability (required) -->
 
 
   <div id="multipage-common">
-<!--PUB-Y-->  <!-- stability warning for TR/ page version -->
-<!--PUB-Y-->  <!-- q.v. http://lists.w3.org/Archives/Public/public-html/2010Oct/0457.html -->
-<!--PUB-Y-->  <p class="stability" id="wip"><strong>This is a work in
-<!--PUB-Y-->  progress!</strong> For the latest updates from the HTML WG, possibly
-<!--PUB-Y-->  including important bug fixes, please look at the <a
-<!--PUB-Y-->  href="<!--INSERT DEVURL-->">editor's draft</a> instead.
-<!--PUB-Y-->  <input type=button onclick="closeWarning(this.parentNode)" value="X">
-<!--PUB-Y-->  </p>
-<!--PUB-Y-->  <script>
-<!--PUB-Y-->   function closeWarning(element) {
-<!--PUB-Y-->     element.parentNode.removeChild(element);
-<!--PUB-Y-->     var date = new Date();
-<!--PUB-Y-->     date.setDate(date.getDate()+4);
-<!--PUB-Y-->     document.cookie = 'hide-obsolescence-warning=1; expires=' + date.toGMTString();
-<!--PUB-Y-->   }
-<!--PUB-Y-->   function removeWIP () {
-<!--PUB-Y-->       document.getElementById('wip').parentNode.removeChild(document.getElementById('wip'));
-<!--PUB-Y-->   }
-<!--PUB-Y-->   if (document.documentElement.getAttribute("data-wip") === "false") removeWIP();
-<!--PUB-Y-->   if (getCookie('hide-obsolescence-warning') == '1') setTimeout(removeWIP, 2000);
-<!--PUB-Y-->  </script>
+<!--PUB-N-->  <!-- stability warning for TR/ page version -->
+<!--PUB-N-->  <!-- q.v. http://lists.w3.org/Archives/Public/public-html/2010Oct/0457.html -->
+<!--PUB-N-->  <p class="stability" id="wip"><strong>This is a work in
+<!--PUB-N-->  progress!</strong> For the latest updates from the HTML WG, possibly
+<!--PUB-N-->  including important bug fixes, please look at the <a
+<!--PUB-N-->  href="<!--INSERT DEVURL-->">editor's draft</a> instead.
+<!--PUB-N-->  <input type=button onclick="closeWarning(this.parentNode)" value="X">
+<!--PUB-N-->  </p>
+<!--PUB-N-->  <script>
+<!--PUB-N-->   function closeWarning(element) {
+<!--PUB-N-->     element.parentNode.removeChild(element);
+<!--PUB-N-->     var date = new Date();
+<!--PUB-N-->     date.setDate(date.getDate()+4);
+<!--PUB-N-->     document.cookie = 'hide-obsolescence-warning=1; expires=' + date.toGMTString();
+<!--PUB-N-->   }
+<!--PUB-N-->   function removeWIP () {
+<!--PUB-N-->       document.getElementById('wip').parentNode.removeChild(document.getElementById('wip'));
+<!--PUB-N-->   }
+<!--PUB-N-->   if (document.documentElement.getAttribute("data-wip") === "false") removeWIP();
+<!--PUB-N-->   if (getCookie('hide-obsolescence-warning') == '1') setTimeout(removeWIP, 2000);
+<!--PUB-N-->  </script>
   </div>
-  <!--START microdata-->
-
-    <!--START srcset-->
-  <!--START microdata-->
+  
