@@ -2,37 +2,11 @@
 
     <p><em>This section describes the status of this document at the time of its publication. 
       Other documents may supersede this document. A list of current W3C publications and the 
-      latest revision of this technical report can be found in the W3C 
-      technical reports index at <a href="http://www.w3.org/TR/">http://www.w3.org/TR/</a>.</em></p>
-
-   
+      latest revision of this technical report can be found in the <a href="http://www.w3.org/TR/">W3C 
+      technical reports index</a> at http://www.w3.org/TR/.</em></p>   
 
   <!-- status of document, group responsible (required) -->
-  <p>The W3C <a href="http://www.w3.org/html/wg/">HTML Working
-  Group</a> is the W3C working group responsible for this
-  specification's progress.
-<!--PUB-N-->  This specification is the <!--INSERT LONGDAY--> <!--INSERT YEAR--> <!--INSERT FULLLONGSTATUS-->.
-<!--PUB-N-->  This specification is the [DATE 1 January 1970] Editor's Draft.
-<!--PUB-Y-->  This specification is the 31 July 2014 Candidate Recommendation.
-    <!--END microdata-->
-    This specification is intended to become a W3C Recommendation.
-    <!--START microdata-->
-  </p>
-  <!--END microdata-->
-
-  <!-- relationship to other work (required) -->
-  <p>This Candidate Recommendation is expected to end no sooner than 28 August 2014.</p> 
-  
-  <p>For this specification to exit the CR stage, the conditions detailed in the 
-  <a href="http://dev.w3.org/html5/decision-policy/public-permissive-exit-criteria.html">
-  CR Exit Criteria (Public Permissive version 3)</a> document will have to be met.</p>
-  
-  <p>Preliminary implementation reports <a href="http://w3c.github.io/test-results/2dcontext/all.html">All Results</a>, 
-  and <a href="http://w3c.github.io/test-results/2dcontext/less-than-2.html">Less Than 2 Passes</a> are available, 
-  but we expect them to evolve significantly between now and Recommendation.</p> 
-
-  <!--END srcset-->
- <!-- where to send feedback (required) -->
+  <!-- where to send feedback (required) -->
 
     <p>If you wish to make comments regarding this document in a manner
     that is tracked by the W3C, please submit them via using <a
@@ -46,70 +20,45 @@
     and arrangements will be made to transpose the comments to our
     public bug database. All feedback is welcome.</p>
 
-    <!--END srcset-->
-    <!--END microdata-->
     <p>
       Work on extending this specification typically proceeds through
       <a href='http://www.w3.org/html/wg/wiki/ExtensionSpecifications'>extension specifications</a>
       which should be consulted to see what new features are being reviewed.
     </p>
-    <!--START microdata-->
-    <!--END database-->
-
+ 
        <p class="alt">The bulk of the text of this specification is also
        available in the WHATWG <a
-       <!--END w3c-html-->
-       <!--END microdata-->
-       <!--END 2dcontext-->
-       <!--END postmsg-->
-       <!--END html-device-->
-       <!--END websocket-api-->
-       <!--END storage-->
-       <!--END eventsource-->
-       <!--END workers-->
-         class="XXX"
-         <!--START w3c-html-->
-           href="http://www.whatwg.org/specs/web-apps/current-work/complete.html"
-         <!--END w3c-html-->
-         <!--START microdata-->
-           href="http://www.whatwg.org/specs/web-apps/current-work/complete.html#microdata"
-         <!--END microdata-->
-         <!--START 2dcontext-->
            href="http://www.whatwg.org/specs/web-apps/current-work/complete.html#2dcontext"
-         <!--END 2dcontext-->
-         <!--START postmsg-->
-           href="http://www.whatwg.org/specs/web-apps/current-work/complete.html#comms"
-         <!--END postmsg-->
-         <!--START html-device-->
-           href="http://www.whatwg.org/specs/web-apps/current-work/complete.html#devices"
-         <!--END html-device-->
-         <!--START websocket-api-->
-           href="http://www.whatwg.org/specs/web-apps/current-work/complete.html#network"
-         <!--END websocket-api-->
-         <!--START storage-->
-           href="http://www.whatwg.org/specs/web-apps/current-work/complete.html#webstorage"
-         <!--END storage-->
-         <!--START eventsource-->
-           href="http://www.whatwg.org/specs/web-apps/current-work/complete.html#eventsource"
-         <!--END eventsource-->
-         <!--START workers-->
-           href="http://www.whatwg.org/specs/web-apps/current-work/complete.html#workers"
-         <!--END workers-->
-       <!--START w3c-html-->
-       <!--START microdata-->
-       <!--START 2dcontext-->
-       <!--START postmsg-->
-       <!--START html-device-->
-       <!--START websocket-api-->
-       <!--START storage-->
-       <!--START eventsource-->
-       <!--START workers-->
+
        >HTML Living Standard</a>, under a license that permits reuse of the
        specification text.</p>
-    <!--START database-->
-
-  <!--END microdata-->
   
+  <p>Work on this specification is also done at the <a
+  href="http://www.whatwg.org/">WHATWG</a>. The W3C HTML working group actively pursues convergence of the 
+  HTML specification with the WHATWG living standard, within the bounds of the <a
+  href="http://www.w3.org/2013/09/html-charter.html">W3C HTML working
+  group charter</a>. There are various ways to follow this work at the WHATWG:</p>
+  <ul>
+      <li>Commit-Watchers mailing list (complete source diffs): <a href="http://lists.whatwg.org/listinfo.cgi/commit-watchers-whatwg.org">http://lists.whatwg.org/listinfo.cgi/commit-watchers-whatwg.org</a></li>
+      <li>Annotated summary with unified diffs: <a href="http://html5.org/tools/web-apps-tracker">http://html5.org/tools/web-apps-tracker</a></li>
+      <li>Raw Subversion interface: <code>svn checkout http://svn.whatwg.org/webapps/</code></li>
+  </ul>
+
+  <p>Publication as a Candidate Recommendation does not imply endorsement by the W3C Membership.
+  This is a draft document and may be updated, replaced or obsoleted by other documents at
+  any time. It is inappropriate to cite this document as other than work in progress.</p>
+  
+   <p>For this specification to exit the CR stage, the conditions detailed in the 
+  <a href="http://dev.w3.org/html5/decision-policy/public-permissive-exit-criteria.html">
+  CR Exit Criteria (Public Permissive version 3)</a> document will have to be met.</p>
+  
+  This document was published by the <a href="http://www.w3.org/html/wg/">HTML Working Group</a> 
+  as a Candidate Recommendation. This document is intended to become a W3C Recommendation. W3C 
+  publishes a Candidate Recommendation to indicate that the document is believed to be stable 
+  and to encourage implementation by the developer community. This Candidate Recommendation is 
+  expected to advance to Proposed Recommendation no earlier than 09 September 2014. All feedback is welcome. 
+   
+
   <!--START srcset-->
   <!-- stability (required) -->
 
@@ -139,26 +88,5 @@
   </div>
   <!--START microdata-->
 
-
-  <p>Publication as a <!--INSERT FULLLONGSTATUS--> does not imply endorsement by the W3C Membership.
-  This is a draft document and may be updated, replaced or obsoleted by other documents at
-  any time. It is inappropriate to cite this document as other than work in progress.</p>
-
-  <!-- version history or list of changes (required) -->
-  <p>The latest version of the editor's draft of this
-  specification is always available on <a
-  href="https://github.com/w3c/html">the W3C HTML git repository</a>.
-  </p>
-  
-  <p>Work on this specification is also done at the <a
-  href="http://www.whatwg.org/">WHATWG</a>. The W3C HTML working group actively pursues convergence of the 
-  HTML specification with the WHATWG living standard, within the bounds of the <a
-  href="http://www.w3.org/2013/09/html-charter.html">W3C HTML working
-  group charter</a>. There are various ways to follow this work at the WHATWG:</p>
-  <ul>
-      <li>Commit-Watchers mailing list (complete source diffs): <a href="http://lists.whatwg.org/listinfo.cgi/commit-watchers-whatwg.org">http://lists.whatwg.org/listinfo.cgi/commit-watchers-whatwg.org</a></li>
-      <li>Annotated summary with unified diffs: <a href="http://html5.org/tools/web-apps-tracker">http://html5.org/tools/web-apps-tracker</a></li>
-      <li>Raw Subversion interface: <code>svn checkout http://svn.whatwg.org/webapps/</code></li>
-  </ul>
-  <!--START srcset-->
+    <!--START srcset-->
   <!--START microdata-->
