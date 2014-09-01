@@ -13,15 +13,15 @@
       <dt>Previous Version:</dt>
       <dd><a href="http://www.w3.org/TR/2014/CR-html5-20140731/">http://www.w3.org/TR/2014/CR-html5-20140731/</a></dd>
       <dt id='specification-editors'>Editors:</dt>
+      <dd>WHATWG:</dd>
+      <dd><a href="mailto:ian@hixie.ch">Ian Hickson</a>, Google, Inc.</dd>
       <dd>W3C:</dd>
       <dd><a href="http://berjon.com/">Robin Berjon</a>, W3C</dd>
       <dd><a href="mailto:sfaulkner@paciellogroup.com">Steve Faulkner</a>, The Paciello Group</dd>
-      <dd><a href="mailto:travil@microsoft.com">Travis Leithead</a>, Microsoft</dd>
-      <dd><a href="mailto:Erika.Doyle@microsoft.com">Erika Doyle Navara</a>, Microsoft</dd>
+      <dd><a href="mailto:travil@microsoft.com">Travis Leithead</a>, Microsoft Corporation</dd>
+      <dd><a href="mailto:Erika.Doyle@microsoft.com">Erika Doyle Navara</a>, Microsoft Corporation</dd>
       <dd><a href="mailto:eoconnor@apple.com">Edward O'Connor</a>, Apple Inc.</dd>
       <dd><a href="mailto:silviapfeiffer1@gmail.com">Silvia Pfeiffer</a></dd>
-      <dd>WHATWG:</dd>
-      <dd><a href="mailto:ian@hixie.ch">Ian Hickson</a>, Google, Inc.</dd>
    </dl>
    <p>
      This specification is also available as a  <a href="single-page.html">single page HTML</a> document. 
@@ -53,15 +53,18 @@
     intended to become a W3C Recommendation.
   </p>
   <p>
-    This Proposed Recommendation is expected to end on 10 October 2014. Advisory Committee 
+    This Proposed Recommendation is expected to end on 14 October 2014. Advisory Committee 
     Representatives should consult their
     <a href="https://www.w3.org/2002/09/wbs/myQuestionnaires">WBS questionnaires</a>.
     Note that substantive technical comments were expected during the Last Call review
-    period that ended 17 June 2014.
+    period that ended 15 July 2014.
   </p>
   <p>
     Please see the Working Group's <a href="http://w3c.github.io/test-results/html/details.html">implementation
-    report</a>.
+    report</a>. Due to a lack of implementations, the 
+    <a href='http://www.w3.org/TR/2014/CR-html5-20140731/embedded-content-0.html#datacue'><code>DataCue</code> interface</a>
+    and <a href='http://www.w3.org/TR/2014/CR-html5-20140731/editing.html#dnd'>drag and drop</a>
+    features were dropped from this draft.
   </p>
   <p>
     If you wish to make comments regarding this document in a manner that is tracked by the W3C,
