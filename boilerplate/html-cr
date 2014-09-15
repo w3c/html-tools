@@ -80,7 +80,9 @@
     If you wish to make comments regarding this document in a manner that is tracked by the W3C,
     please submit them via using our <a
     href="http://www.w3.org/Bugs/Public/enter_bug.cgi?product=HTML%20WG">our public bug
-    database</a>. If you cannot do this then you can also e-mail feedback to <a
+    database</a>
+    (<a href='https://www.w3.org/Bugs/Public/buglist.cgi?bug_status=NEW&amp;bug_status=ASSIGNED&amp;bug_status=REOPENED&amp;component=HTML5%20spec&amp;keywords=CR%2C%20&amp;keywords_type=allwords&amp;known_name=CR&amp;list_id=43956&amp;product=HTML%20WG&amp;query_based_on=CR&amp;query_format=advanced'>open bugs</a>).
+    If you cannot do this then you can also e-mail feedback to <a
     href="mailto:public-html-comments@w3.org">public-html-comments@w3.org</a> (<a
     href="mailto:public-html-comments-request@w3.org?subject=subscribe">subscribe</a>, <a
     href="http://lists.w3.org/Archives/Public/public-html-comments/">archives</a>), and arrangements
