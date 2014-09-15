@@ -62,6 +62,10 @@
     period that ended 15 July 2014.
   </p>
   <p>
+    The reference to the URL specification used in this document is still under review, pending an
+    assessment of its stability.
+  </p>
+  <p>
     Please see the Working Group's <a href="http://w3c.github.io/test-results/html/details.html">implementation
     report</a>. Due to a lack of implementations, the 
     <a href='http://www.w3.org/TR/2014/CR-html5-20140731/embedded-content-0.html#datacue'><code>DataCue</code> interface</a>
