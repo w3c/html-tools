@@ -86,27 +86,6 @@
     <a href='http://www.whatwg.org/specs/web-apps/current-work/complete.html'>HTML Living 
     Standard</a>, under a license that permits reuse of the specification text.
   </p>
-  <div id="multipage-common">
-<!--PUB-Y-->  <p class="stability" id="wip"><strong>This is a work in
-<!--PUB-Y-->  progress!</strong> For the latest updates from the HTML WG, possibly
-<!--PUB-Y-->  including important bug fixes, please look at the <a
-<!--PUB-Y-->  href="<!--INSERT DEVURL-->">editor's draft</a> instead.
-<!--PUB-Y-->  <input type=button onclick="closeWarning(this.parentNode)" value="X">
-<!--PUB-Y-->  </p>
-<!--PUB-Y-->  <script>
-<!--PUB-Y-->   function closeWarning(element) {
-<!--PUB-Y-->     element.parentNode.removeChild(element);
-<!--PUB-Y-->     var date = new Date();
-<!--PUB-Y-->     date.setDate(date.getDate()+4);
-<!--PUB-Y-->     document.cookie = 'hide-obsolescence-warning=1; expires=' + date.toGMTString();
-<!--PUB-Y-->   }
-<!--PUB-Y-->   function removeWIP () {
-<!--PUB-Y-->       document.getElementById('wip').parentNode.removeChild(document.getElementById('wip'));
-<!--PUB-Y-->   }
-<!--PUB-Y-->   if (document.documentElement.getAttribute("data-wip") === "false") removeWIP();
-<!--PUB-Y-->   if (getCookie('hide-obsolescence-warning') == '1') setTimeout(removeWIP, 2000);
-<!--PUB-Y-->  </script>
-  </div>
   <p>
     Publication as a Proposed Recommendation does not imply endorsement by the W3C Membership.
     This is a draft document and may be updated, replaced or obsoleted by other documents at any
