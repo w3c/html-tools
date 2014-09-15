@@ -66,6 +66,10 @@
     assessment of its stability.
   </p>
   <p>
+    A comprehensive test suite for this specification is maintained and kept up to date as part of
+    the <a href='https://github.com/w3c/web-platform-tests'>WebPlatform Tests</a> project.
+  </p>
+  <p>
     Please see the Working Group's <a href="http://w3c.github.io/test-results/html/details.html">implementation
     report</a>. Due to a lack of implementations, the 
     <a href='http://www.w3.org/TR/2014/CR-html5-20140731/embedded-content-0.html#datacue'><code>DataCue</code> interface</a>
