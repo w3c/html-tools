@@ -6,5 +6,7 @@
 <!--PUB-Y-->    <dd><a href="http://www.w3.org/TR/<!--INSERT YEAR-->/<!--INSERT URLSTATUS-->-<!--INSERT TRNAME-->-<!--INSERT YEAR--><!--INSERT SHORTDAY-->/">http://www.w3.org/TR/<!--INSERT YEAR-->/<!--INSERT URLSTATUS-->-<!--INSERT TRNAME-->-<!--INSERT YEAR--><!--INSERT SHORTDAY-->/</a></dd>
     <dt>Latest Published Version:</dt>
     <dd><a href="http://www.w3.org/TR/<!--INSERT TRNAME-->/">http://www.w3.org/TR/<!--INSERT TRNAME-->/</a></dd>
+    <dt>Latest Version of HTML:</dt>
+    <dd><a href="http://www.w3.org/TR/html/">http://www.w3.org/TR/html/</a></dd>
     <dt>Latest Editor's Draft:</dt>
     <dd><a class="latest-link" href="<!--INSERT DEVURL-->"><!--INSERT DEVURL--></a></dd>
