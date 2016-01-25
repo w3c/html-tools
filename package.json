@@ -1,14 +1,11 @@
 {
     "name": "heartbeat",
-    "description": "Generate heartbeat pubs for the HTML specification",
+    "description": "Generate the mulipage HTML specification",
     "version": "0.0.1",
-    "author": "Robin Berjon <robin@w3.org>",
+    "author": "<plh@w3.org>",
     "private": true,
     "dependencies": {
-        "wrench": "*"
-    ,   "fs.extra": "*"
-    ,   "request": "*"
-    ,   "jsdom":    "*"
-    ,   "libxmljs":    "*"
+        "nightmare": "*"
+    ,   "vo": "*"
     }
 }
