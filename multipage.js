@@ -40,15 +40,16 @@ var sections = [
   ,   "obsolete"
   ,   "iana"
   ,   "index"
-  ,   "references"
   ,   "property-index"
   ,   "idl-index"
+  ,   "references"
+  ,   "acknowledgements"
 ];
 
 var rules = [];
 
 var ruleSet = [
-  "proper-sections"
+//  "proper-sections"
 ];
 
 ruleSet.forEach(function (lib) {
@@ -63,11 +64,13 @@ function* run() {
   var i, id;
 
   // first yield for the document to load
-  console.log("loading...");
-  yield spec
+  console.log("loading " + specURL);
+  var title = yield spec
     .evaluate(function() {
       return document.title;
     });
+
+  console.log("Found " + title);
 
   // do whatever cleanup as defined by the rules
   //   can't use forEach here because of the yield :-/
@@ -87,6 +90,10 @@ function* run() {
     id = sections[i];
     ret += yield spec
       .evaluate(function(id) {
+        var destfile = id;
+        if (destfile === "index") {
+          destfile = "fullindex";
+        }
         var ret = "";
         if (window.idMap === undefined) {
           window.idMap = [];
@@ -98,7 +105,7 @@ function* run() {
         var elements = section.querySelectorAll("*[id]");
         for (var i = 0; i < elements.length; i++) {
           window.idMap["#" + elements[i].id] = id;
-          ret += '"#' + elements[i].id + '":"' + id + '"\n'
+          ret += '"#' + elements[i].id + '":"' + destfile + '"\n';
         }
         return ret;
       }, id);
@@ -167,7 +174,7 @@ function* run() {
           nextElement = current.nextElementSibling;
           current.parentNode.removeChild(current);
           current = nextElement;
-        } while (nextElement.tagName !== "NAV");
+        } while (current.tagName !== "NAV");
 
         current = doc.querySelector("header").nextElementSibling;
         do {
@@ -180,17 +187,17 @@ function* run() {
         var section_position = -1;
         var titleSection = "";
         var main = doc.querySelector("main");
-        var children = main.children;
         // nodeList are live, so start from the end to remove children
-        for (var i = children.length - 1; i >= 0; i--) {
-          var section = children[i];
+        for (var j = main.children.length - 1; j >= 0; j--) {
+          var section = main.children[j];
           var h2 = section.querySelector("h2");
-          if (h2.id !== id) {
+          if (section.tagName !== "SECTION"
+              || h2 === null || h2.id !== id) {
             main.removeChild(section);
           } else {
             // we keep this section
             // remember its position and its title
-            section_position = i;
+            section_position = j;
             titleSection = h2.querySelector("span.content").textContent;
           }
         }
@@ -245,7 +252,11 @@ function* run() {
     if (sec.startsWith("ERROR:")) {
       console.log("    " + sec);
     } else {
-      io.save(baseOutputURL + id + ".html", sec);
+      var destfile = id;
+      if (destfile === "index") {
+        destfile = "fullindex";
+      }
+      io.save(baseOutputURL + destfile + ".html", sec);
     }
   } // end for each section
 
