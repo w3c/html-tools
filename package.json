@@ -7,5 +7,6 @@
     "dependencies": {
         "nightmare": "*"
     ,   "vo": "*"
+    ,   "es6-promise": "*"
     }
 }
