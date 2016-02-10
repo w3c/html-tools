@@ -34,8 +34,6 @@
 //   return res.text();
 //  })
 
-require('es6-promise').polyfill();
-
 // that's our exposed module
 var io_promise = {};
 
