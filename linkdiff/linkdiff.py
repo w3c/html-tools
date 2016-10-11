@@ -223,7 +223,7 @@ def diffLinks(markupBaseline, markupSource):
         else:
             if check4External(retryBaselineLinks[baseUnmatchedIndex]):
                 retryBaselineLinks[baseUnmatchedIndex].status = 'non-matched-external'
-
+    return (baseDocument, srcDocument)
 
 MATCH_RATIO_THRESHOLD = 0.7
 
@@ -402,7 +402,47 @@ lots of time on my commute. Microsoft <i>is quite awesome</i> to provide such a 
 that live in the <span>Pugot Sound</span> area. Of course, I could get to work a lot faster by driving my car,\n\
 but then I wouldn't be able to write tests while on the <a href=#target>bus</a>.")
     istrue(getContextualText(doc.links[0]), " live in the Pugot Sound area. Of course, I could get to work a lot faster by driving my car,\n\
-but then I wouldn't be able to write tests while on the bus.", 'text extraction working correctly')
+but then I wouldn't be able to write tests while on the bus.", "test6: text extraction working correctly")
+    istrue(getContextualText(doc.getElementById("target")), "The freeway can get quite backed-up; that's why I enjoy riding the Connector. It saves me \n\
+lots of time on my commute. Microsoft is quite awesome to provide such a service to their employees \n\
+that live in the Pugot So", "test6: target text extraction")
+    
+    # test 7 - getAndCompareRatio
+    doc = parser.parse("Here's some text that is the same<a href=hi>")
+    doc2 = parser.parse("And this sentance won't match up anywhere<a href=bar>")
+    istrue(getAndCompareRatio(doc.links[0], doc.links[0]), 1.0, "test7: getAndCompareRatio working for same sentances")
+    istrue(getAndCompareRatio(doc.links[0], doc2.links[0]) < 0.09, True, "test7: getAndCompareRatio working for non-similar sentances")
+    doc2 = parser.parse("Here's some text that isn't the same<a href=foo>")
+    istrue(getAndCompareRatio(doc.links[0], doc2.links[0]) > 0.95, True, "test7: getAndCompareRatio working for similar sentances")
+    
+    # test 8 - check4Match(link1, link2)
+    istrue(check4Match(doc.links[0], doc2.links[0]), True, "test8: check4Match finds the two links that are similar a match!")
+    istrue(doc.links[0].status, "matched", "test8: link status updated to 'matched'")
+    istrue(doc.links[0].status, doc2.links[0].status, "test8: both status' are the same in match case")
+    istrue(doc2.links[0].matchRatio > 0.95, True, "test8: matchRatio set to the result of the match")
+    istrue(doc.links[0].matchIndex, 0, "test8: match index correct for matching link in other document")
+    istrue(check4Match(doc.links[0], doc2.links[0]), False, "test8: check4Match doesn't re-process links that have already been matched")
+
+    # test 9 - put it all together
+    markup1 = "<a href=#top>Top</a>: if you're <a href='http://external/comparing'>comparing lines</a> \
+as sequences of characters, and don't want to <a href=#sync>synch</a> up on blanks or hard <span id='sync'>tabs</span>. \
+The optional arguments a and b are sequences to be compared; both <tt>default</tt> to empty strings. The elements of both sequences must be hashable. \
+The optional argument autojunk can be used to disable the automatic <a href=#not_matched>junk heuristic</a>. \
+New in version 2.7.1: The <a href='http://test/test/test.com'>autojunk</a> parameter.."
+    markup2 = "<a href=#top>Top</a>: if you are <a href='http://external/comparing'>comparing a line</a> \
+as sequences of characters, and don't want to <a href=#sync>synch</a> up on <i>blanks</i> or <b>hard <span id='sync'>tabs</span></b>. \
+The optional arguments a and b are sequences to be compared; both will <tt>default</tt> to empty strings. The elements of both sequences must be hashable--the \
+optional argument autoskip may stop the automatic skipping behavior for the <a href=#not_matched>stop algorithm</a>. \
+With the addition of a new stop algorithm in this document, you may now see that things aren't quite <a href='http://test/test/test.com'>the same</a>.."
+    doc, doc2 = diffLinks(markup1, markup2)
+    istrue(len(doc.links), 5, "test9: parsing validation-- 5 links in markup1")
+    istrue(len(doc2.links), 5, "test9: parsing validation-- 5 links in markup2")
+    dumpDocument(doc, True)    
+    #* broken -
+    #* external -
+    #* matched -
+    #* correct -
+    #* skipped
     
     print 'All tests passed'
 
