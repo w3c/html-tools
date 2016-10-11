@@ -160,63 +160,77 @@ class LinkElement(Element):
         self.href = href
         self.lineNo = lineNo
         self.status = "non-matched"
+        self._matched = False #convenience for rapid testing (vs. substring ops)
         self.matchIndex = -1
         self.matchRatio = 0.0
         self.correctRatio = 0.0
     def __str__(self):
         return '{ ' + ('"id":"' + self.id + '" ' if self.id != '' else '') + '"index":' + str(self.index) + ',"status":"' + self.status + '","href":"' + self.href.encode('ascii', 'xmlcharrefreplace') + '","matchIndex":' + str(self.matchIndex) + ',"matchRatio":' + str(self.matchRatio) + ',"correctRatio":' + str(self.correctRatio) + ',"lineNo":' + str(self.lineNo) + ' }'
 
-HALF_SLIDING_WINDOW_SIZE = 25
+SLIDING_WINDOW_SIZE = 50
+SHOW_STATUS = True
 
 def diffLinks(markupBaseline, markupSource):
     parser = LinkAndTextHTMLParser()
-    print 'Parsing baseline document...'
+    if SHOW_STATUS:
+        print 'Parsing baseline document...'
     baseDocument = parser.parse(markupBaseline)
-    print 'Parsing source document...'
+    if SHOW_STATUS:
+        print 'Parsing source document...'
     srcDocument = parser.parse(markupSource)
-    print 'Matching links between documents...'
+    if SHOW_STATUS:
+        print 'Matching links between documents...'
     baseLinkIndex = 0
     baseLinkIndexLen = len(baseDocument.links)
     srcLinkIndex = 0
     srcLinkIndexLen = len(srcDocument.links)
-    baseMatches = []
+    baseMatches = [] # this collects matches for both sides (the source-side is reachable via the base's matchIndex value)
     retryBaselineLinks = []
     retrySourceLinks = []
     while baseLinkIndex < baseLinkIndexLen or srcLinkIndex < srcLinkIndexLen:
         if baseLinkIndex < baseLinkIndexLen:
-            srcSlidingWindowIndex = max(srcLinkIndex - HALF_SLIDING_WINDOW_SIZE, 0)
-            srcSlidingWindowLimit = min(srcLinkIndex + HALF_SLIDING_WINDOW_SIZE, srcLinkIndexLen)
+            srcSlidingWindowIndex = srcLinkIndex
+            srcSlidingWindowLimit = min(srcLinkIndex + SLIDING_WINDOW_SIZE, srcLinkIndexLen)
             while srcSlidingWindowIndex < srcSlidingWindowLimit:
                 if check4Match(baseDocument.links[baseLinkIndex], srcDocument.links[srcSlidingWindowIndex]):
                     baseMatches.append(baseDocument.links[baseLinkIndex])
+                    # Assume this is a new "synchronization point" between the documents
+                    # Skip intervening links (for later) and advance indexes.
+                    while srcLinkIndex < srcSlidingWindowIndex:
+                        retrySourceLinks.append(srcDocument.links[srcLinkIndex])
+                        srcLinkIndex += 1
+                    srcLinkIndex = srcSlidingWindowIndex + 1 #start the next iteration on the next (un-matched) link
                     break
                 srcSlidingWindowIndex += 1
             else:
                 retryBaselineLinks.append(baseDocument.links[baseLinkIndex])
-
             baseLinkIndex += 1
-        if srcLinkIndex < srcLinkIndexLen:
-            baseSlidingWindowIndex = max(baseLinkIndex - HALF_SLIDING_WINDOW_SIZE, 0)
-            baseSlidingWindowLimit = min(baseLinkIndex + HALF_SLIDING_WINDOW_SIZE, baseLinkIndexLen)
+        if srcLinkIndex < srcLinkIndexLen:   
+            baseSlidingWindowIndex = baseLinkIndex
+            baseSlidingWindowLimit = min(baseLinkIndex + SLIDING_WINDOW_SIZE, baseLinkIndexLen)
             while baseSlidingWindowIndex < baseSlidingWindowLimit:
                 if check4Match(baseDocument.links[baseSlidingWindowIndex], srcDocument.links[srcLinkIndex]):
                     baseMatches.append(baseDocument.links[baseSlidingWindowIndex])
+                    while baseLinkIndex < baseSlidingWindowIndex:
+                        retryBaselineLinks.append(baseDocument.links[baseLinkIndex])
+                        baseLinkIndex += 1
+                    baseLinkIndex = baseSlidingWindowIndex + 1
                     break
                 baseSlidingWindowIndex += 1
             else:
                 retrySourceLinks.append(srcDocument.links[srcLinkIndex])
-
             srcLinkIndex += 1
-
-    print 'Verifying correctness of matched links...'
+    if SHOW_STATUS:
+        print 'Verifying correctness of matched links...'
     for i in xrange(len(baseMatches)):
         check4Correct(baseDocument, baseMatches[i], srcDocument, srcDocument.links[baseMatches[i].matchIndex])
-
-    print 'Last-chance matching previously non-matched links between documents...'
+    if SHOW_STATUS:
+        print 'Last-chance matching previously non-matched links between documents...'
     for baseUnmatchedIndex in xrange(len(retryBaselineLinks)):
         for srcUnmatchedIndex in xrange(len(retrySourceLinks)):
             if check4Match(retryBaselineLinks[baseUnmatchedIndex], retrySourceLinks[srcUnmatchedIndex]):
                 check4Correct(baseDocument, retryBaselineLinks[baseUnmatchedIndex], srcDocument, retrySourceLinks[srcUnmatchedIndex])
+                del retrySourceLinks[srcUnmatchedIndex] # Since we don't need to re-check this instance (it's now matched)
                 break
             elif check4External(retrySourceLinks[srcUnmatchedIndex]):
                 retrySourceLinks[srcUnmatchedIndex].status = 'non-matched-external'
@@ -228,12 +242,13 @@ def diffLinks(markupBaseline, markupSource):
 MATCH_RATIO_THRESHOLD = 0.7
 
 def check4Match(link1, link2):
-    if link1.status[:11] != 'non-matched' or link2.status[:11] != 'non-matched':
+    if link1._matched or link2._matched:
         return False
     computedRatio = getAndCompareRatio(link1, link2)
     if computedRatio > MATCH_RATIO_THRESHOLD:
         link1.matchRatio = link2.matchRatio = computedRatio
         link1.status = link2.status = 'matched'
+        link1._matched = link2._matched = True
         link1.matchIndex = link2.index
         link2.matchIndex = link1.index
         return True
@@ -245,10 +260,11 @@ def check4Match(link1, link2):
         link2.matchIndex = link1.index
     return False
 
-
 IGNORE_LIST = {}
 IGNORE_LIST['http://test/test/test.com'] = True
 
+# Only called after a pair of links has been matched. This "upgrades" the match (if possible) to an 
+# additional state: skipped, correct, correct-external, broken, or the [non-upgrade] matched-external.
 def check4Correct(doc1, link1, doc2, link2):
     if link1.href in IGNORE_LIST or link2.href in IGNORE_LIST:
         if link1.href in IGNORE_LIST:
@@ -351,6 +367,9 @@ def dumpDocument(doc, enumAll=False):
     print "total nodes in document: " + str(counter)
     
 def runTests():
+    global SHOW_STATUS #intend to modify a global variable.
+    oldShowStatus = SHOW_STATUS
+    SHOW_STATUS = False
     # test 1
     parser = LinkAndTextHTMLParser()
     doc = parser.parse("<hello/><there id ='foo' /></there></hello>");
@@ -424,27 +443,80 @@ that live in the Pugot So", "test6: target text extraction")
     istrue(check4Match(doc.links[0], doc2.links[0]), False, "test8: check4Match doesn't re-process links that have already been matched")
 
     # test 9 - put it all together
-    markup1 = "<a href=#top>Top</a>: if you're <a href='http://external/comparing'>comparing lines</a> \
+    markup1 = "<a href=#top>Top</a>: <a href=http://test/test/test.com>if</a> you're <a href='http://external/comparing'>comparing lines</a> \
 as sequences of characters, and don't want to <a href=#sync>synch</a> up on blanks or hard <span id='sync'>tabs</span>. \
 The optional arguments a and b are sequences to be compared; both <tt>default</tt> to empty strings. The elements of both sequences must be hashable. \
 The optional argument autojunk can be used to disable the automatic <a href=#not_matched>junk heuristic</a>. \
 New in version 2.7.1: The <a href='http://test/test/test.com'>autojunk</a> parameter.."
-    markup2 = "<a href=#top>Top</a>: if you are <a href='http://external/comparing'>comparing a line</a> \
+    markup2 = "<a href=#top>Top</a>: <a href=http://test/test/test.com>if</a> you are <a href='http://external/comparing'>comparing a line</a> \
 as sequences of characters, and don't want to <a href=#sync>synch</a> up on <i>blanks</i> or <b>hard <span id='sync'>tabs</span></b>. \
 The optional arguments a and b are sequences to be compared; both will <tt>default</tt> to empty strings. The elements of both sequences must be hashable--the \
 optional argument autoskip may stop the automatic skipping behavior for the <a href=#not_matched>stop algorithm</a>. \
 With the addition of a new stop algorithm in this document, you may now see that things aren't quite <a href='http://test/test/test.com'>the same</a>.."
     doc, doc2 = diffLinks(markup1, markup2)
-    istrue(len(doc.links), 5, "test9: parsing validation-- 5 links in markup1")
-    istrue(len(doc2.links), 5, "test9: parsing validation-- 5 links in markup2")
-    dumpDocument(doc, True)    
-    #* broken -
-    #* external -
-    #* matched -
-    #* correct -
-    #* skipped
+    istrue(len(doc.links), 6, "test9: parsing validation-- 6 links in markup1")
+    istrue(len(doc2.links), 6, "test9: parsing validation-- 6 links in markup2")
+    istrue(doc.links[0].status, "broken", "test9: link matching validation: link is broken")
+    istrue(doc.links[0].matchIndex, 0, "test9: link matching validation: matched at 0")
+    istrue(doc2.links[doc.links[0].matchIndex].href, "#top", "test9: correct link (0) matched in source doc")
+    istrue(doc.links[0].matchRatio > 0.97, True, "test9: link matching validation: Ratio is 0.97333-ish")
+    istrue(doc.links[0].correctRatio, 0.0, "test9: link matching validation: default value for not-correct")
+    istrue(doc.links[1].status, "skipped", "test9: link matching validation: link is matched & skipped")
+    istrue(doc.links[1].matchIndex, 1, "test9: link matching validation: matched at 1")
+    istrue(doc2.links[doc.links[1].matchIndex].href, "http://test/test/test.com", "test9: correct link (1) matched in source doc")
+    istrue(doc.links[1].matchRatio > 0.98, True, "test9: link matching validation: Ratio is 0.9806")
+    istrue(doc.links[1].correctRatio, 0.0, "test9: link matching validation: not correct--0 ratio")
+    istrue(doc.links[2].status, "correct-external", "test9: link matching validation: link is correct, but external")
+    istrue(doc.links[2].matchIndex, 2, "test9: link matching validation: matched at 2")
+    istrue(doc2.links[doc.links[2].matchIndex].href, "http://external/comparing", "test9: correct link (2) matched in source doc")
+    istrue(doc.links[2].matchRatio > 0.97, True, "test9: link matching validation: Ratio is 0.97885-ish")
+    istrue(doc.links[2].correctRatio, 1.0, "test9: link matching validation: external link is 100% correct/same")
+    istrue(doc.links[3].status, "correct", "test9: link matching validation: link is correct")
+    istrue(doc.links[3].matchIndex, 3, "test9: link matching validation: matched at 3")
+    istrue(doc2.links[doc.links[3].matchIndex].href, "#sync", "test9: correct link (2) matched in source doc")
+    istrue(doc.links[3].matchRatio > 0.96, True, "test9: link matching validation: Ratio is approx 0.969")
+    istrue(doc.links[3].correctRatio > 0.97, True, "test9: link matching validation: Correctness matching ratio is approx 0.9725")
+    istrue(doc.links[4].status, "non-matched", "test9: link matching validation: link is not matched")
+    istrue(doc.links[4].matchIndex, 5, "test9: link matching validation: failed to match--all broken links checked, index set to last index")
+    istrue(doc.links[4].matchRatio < 0.151, True, "test9: link matching validation: Match ratio is too low to match, approx 0.150")
+    istrue(doc.links[4].correctRatio, 0.0, "test9: link matching validation: un-matched correctRatio is 0.0")
+    istrue(doc.links[5].status, "non-matched-external", "test9: link matching validation: link is not matched and external")
+    istrue(doc.links[5].matchIndex, 4, "test9: link matching validation: matched at 4")
+    istrue(doc.links[5].matchRatio < 0.2, True, "test9: link matching validation: not matched, low ratio (0.192)")
+    istrue(doc.links[5].correctRatio, 0.0, "test9: link matching validation: Correctness n/a (0.0)")
+    #dumpDocument(doc, True) 
+    #dumpDocument(doc2, True) 
     
-    print 'All tests passed'
+    # test 10 - check 'matched' and 'matched-external'
+    markup1 =  "<span id=matched>One</span> of the common, difficult to figure-out problems in the current HTML spec is\n"
+    markup1 += "whether links are 'correct'. Not 'correct' as in syntax or as opposite to broken\n"
+    markup1 += "links, but rather that the link in question goes to the semantically correct place\n"
+    markup1 += "in the spec or other linked <a href='http://external/place1'>spec</a>. <a href=#matched>Correctness</a>, in this sense, can only be determined\n"
+    markup1 += "by comparing the links to a canonical 'correct' source. In the case of the W3C HTML\n"
+    markup1 += "spec, the source used for determining correctness is the WHATWG version of the spec."
 
+    markup2 =  "One of the common, difficult to figure-out problems in the current HTML spec is\n"
+    markup2 += "whether links are 'correct'. Not 'correct' as in syntax or as opposite to broken\n"
+    markup2 += "links, but rather that the link in question goes to the semantically correct place\n"
+    markup2 += "in the spec or other linked <a href='http://external/place2'>spec</a>. <a href=#matched>Correctness</a>, in this sense, can only be determined\n"
+    markup2 += "by comparing the links to a canonical 'correct' source. In the case of the W3C HTML\n"
+    markup2 += "spec, the source used for determining correctness is the WHATWG <span id=matched>version</span> of the spec."
+    doc, doc2 = diffLinks(markup1, markup2)
+    istrue(len(doc.links), 2, "test10: parsing validation-- 2 links in markup1")
+    istrue(len(doc2.links), 2, "test10: parsing validation-- 2 links in markup2")
+    istrue(doc.links[0].status, "matched-external", "test10: link matching validation: link is matched, but external (and not correct)")
+    istrue(doc.links[0].matchIndex, 0, "test10: link matching validation: matched at 0")
+    istrue(doc2.links[doc.links[0].matchIndex].href, "http://external/place2", "test10: correct index (0) matched in source doc")
+    istrue(doc.links[0].matchRatio > 0.99, True, "test10: link matching validation: Ratio is 1.0")
+    istrue(doc.links[0].correctRatio, 0.0, "test10: link matching validation: default value for not-correct")
+    istrue(doc.links[0].lineNo, 4, "test10: line number is correct (4)")
+    istrue(doc.links[1].status, "matched", "test10: link matching validation: link is matched")
+    istrue(doc.links[1].matchIndex, 1, "test10: link matching validation: matched at 1")
+    istrue(doc2.links[doc.links[1].matchIndex].href, "#matched", "test10: correct link (1) matched in source doc")
+    istrue(doc.links[1].matchRatio > 0.99, True, "test10: link matching validation: Ratio is 1.0")
+    istrue(doc.links[1].correctRatio < 0.28, True, "test10: link matching validation: not correct--0.275 ratio")
+    #dumpDocument(doc, True)
+    print 'All tests passed'
+    SHOW_STATUS = oldShowStatus
 
 runTests()
