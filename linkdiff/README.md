@@ -1,8 +1,6 @@
 linkdiff - Link Correctness Comparison Tool
 ===========================================
 
-This repository contains to generate the multipage HTML specification from a single page.
-
 Abstract
 ============
 
