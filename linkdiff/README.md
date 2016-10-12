@@ -139,7 +139,7 @@ A link object has:
 
 * `index` - the ordinal index of this link in document order.
 * `status` - a string, one of:
-  * "_non-matched_" - the link wasn't matched up with any other link in the other document. For
+  * "non-matched" - the link wasn't matched up with any other link in the other document. For
       the statistics, this increments the `nonMatchedTotal` value.
   * "matched" - the link was only matched in the other document (but the link target was not
       matched, e.g., not "correct"). For the statistics, this increments the `matchingLinksTotal`
