@@ -4,6 +4,11 @@
 
 from HTMLParser import HTMLParser
 from difflib import SequenceMatcher
+import sys
+import os.path
+import codecs
+import json
+import urllib
 
 # Subclass the parser to build the DOM described below. Since the
 # DOM will only be used for tracking links and what they link to, the
@@ -261,7 +266,6 @@ def check4Match(link1, link2):
     return False
 
 IGNORE_LIST = {}
-IGNORE_LIST['http://test/test/test.com'] = True
 
 # Only called after a pair of links has been matched. This "upgrades" the match (if possible) to an 
 # additional state: skipped, correct, correct-external, broken, or the [non-upgrade] matched-external.
@@ -341,7 +345,6 @@ def check4External(link):
 def getLinkTarget(href):
     return href[1:]
 
-
 # Validation testing
 # =====================================================
 def istrue(a, b, message):
@@ -370,6 +373,8 @@ def runTests():
     global SHOW_STATUS #intend to modify a global variable.
     oldShowStatus = SHOW_STATUS
     SHOW_STATUS = False
+    IGNORE_LIST['http://test/test/test.com'] = True
+    
     # test 1
     parser = LinkAndTextHTMLParser()
     doc = parser.parse("<hello/><there id ='foo' /></there></hello>");
@@ -519,4 +524,158 @@ With the addition of a new stop algorithm in this document, you may now see that
     print 'All tests passed'
     SHOW_STATUS = oldShowStatus
 
-runTests()
+# Input processing
+# =====================================================
+
+def cmdhelp():
+    print "linkdiff - A diffing tool for HTML hyperlink semantic validation"
+    print ""
+    print "  The tool compares the hyperlinks (anchor tags with an href attribute) in a baseline"
+    print "  document with those in a source document. It checks that both documents have the same"
+    print "  set of hyperlinks, and that those hyperlinks link to the same relative places within"
+    print "  their respective documents."
+    print ""
+    print "Usage:"
+    print ""
+    print "  linkdiff [flags] <baseline html file> <source html file>"
+    print ""
+    print "      The baseline and source files may be paths to the respective files on disk, or URLs."
+    print "      The only supported protocols for URLs are 'http' and 'https'; any other protocol will"
+    print "      be interpreted as a local file path."
+    print ""
+    print "Flags:"
+    print "  -ratio <value between 0 and 1>"
+    print "      Example: linkdiff -ratio 0.9 baseline_doc.html source_doc.html"
+    print "      Overrides the default ratio used for verifying that a link is in the same place in"
+    print "      both specs, and that the hyperlink's targets are in the same relative place. A low"
+    print "      ratio (e.g., 0.25 or 25%) is more permissive in that only 25% of the relative surrounding"
+    print "      content must be the same to be considered a match. A higher ratio (e.g., 0.9 or 90%) is"
+    print "      more strict. The default (if the flag is not supplied) is 0.7 or 70%."
+    print "  -ignorelist <ignorelist_file>"
+    print "      Example: linkdiff -ignorelist ignore_list.json baseline_doc.html source_doc.html"
+    print "      The ignore list is a file containing a JSON object with a single property named"
+    print "      'ignoreList' whose value is an array of strings. The strings should contain the absolute"
+    print "      or relative URLs to skip/ignore during link verification. String matching is used to"
+    print "      apply the strings to href values, so exact matches are required. The ignore list applies"
+    print "      to both baseline and source html files"
+    print "  -V"
+    print "      Example: linkdiff -V baseline_doc.html source_doc.html"
+    print "      Turns off the verbose status messages during processing."
+    print "  -runtests"
+    print "      Example: linkdiff -runtests"
+    print "      When this flag is used, the <baseline html file> and <source html file> input values"
+    print "      are not required. This flag runs the self-tests to ensure the code is working as expected"
+
+# Test for existance before calling...may return None as failure mode
+def getFlagValue(flag):
+    index = sys.argv.index(flag)
+    if index + 1 < len(sys.argv)-2: # [0] linkdiff [len-2] baseline_doc [len-1] src_doc
+        return sys.argv[index+1]
+    else:
+        return None
+
+def setRatio(newRatio):
+    global MATCH_RATIO_THRESHOLD
+    if newRatio == None:
+        return
+    newRatio = float(newRatio)
+    # clamp from 0..1
+    newRatio = max(min(newRatio, 1.0), 0.0)
+    MATCH_RATIO_THRESHOLD = newRatio
+    if SHOW_STATUS:
+        print "Using custom ratio: " + str(MATCH_RATIO_THRESHOLD)
+
+
+def toUnicode(raw):
+    if raw.startswith(codecs.BOM_UTF16_LE) or raw.startswith(codecs.BOM_UTF16_BE):
+        return raw.decode("utf-16", "replace")
+    elif raw.startswith(codecs.BOM_UTF8):
+        return raw.decode("utf-8-sig", "replace") #decoding errors substitute the replacement character
+    else:
+        return raw.decode("utf-8", "replace") # assume it.
+    
+def getTextFromLocalFile(fileString):
+    if fileString[0:1] == '"':
+        fileString = fileString[1:-1]
+    normalizedfileString = os.path.abspath(fileString)
+    if not os.path.isfile(normalizedfileString):
+        print "File not found: '" + fileString + "' is not a file (or was not found)"
+        return None
+    with open(fileString, "r") as file:
+        return toUnicode(file.read())
+    
+def setIgnoreList(newListFile):
+    global IGNORE_LIST
+    if newListFile == None:
+        return
+    ignoreRoot = json.loads(getTextFromLocalFile(newListFile))
+    if not "ignoreList" in ignoreRoot:
+        print "Ignore list format error: expected an root object with key 'ignoreList'"
+        return
+    listOIgnoreVals = ignoreRoot["ignoreList"]
+    if not isinstance(listOIgnoreVals, list): #check for built-in list type.
+        print "Ignore list format error: expected the 'ignoreList' key to have a list as its value"
+        return
+    counter = 0
+    for ignoreItem in listOIgnoreVals:
+        if isinstance(ignoreItem, basestring):
+            IGNORE_LIST[ignoreItem] = True
+            counter += 1
+    if SHOW_STATUS:
+        print "Using ignore list; entries found: " + str(counter)
+    
+def hideStatus():
+    global SHOW_STATUS
+    SHOW_STATUS = False
+
+def loadURL(url):
+    try:
+        urlhandle = urllib.urlopen(url)
+        if SHOW_STATUS:
+            print "Getting '" + url + "' from the network..."
+        contents = toUnicode(urlhandle.read())
+        urlhandle.close()
+        return contents
+    except IOError:
+        print "Error opening network location: " + url
+        return None
+
+def loadDocumentText(urlOrPath):
+    if urlOrPath[0:1] == '"':
+        urlOrPath = urlOrPath[1:-1]
+    if urlOrPath[:7] == "http://" or urlOrPath[:8] == "https://":
+        return loadURL(urlOrPath)
+    else: #assume file path...
+        return getTextFromLocalFile(urlOrPath) # may return None
+
+def processCmdParams():        
+    if len(sys.argv) == 1:
+        return cmdhelp()
+    if "-runtests" in sys.argv:
+        return runTests()
+    expectedArgs = 3
+    if "-V" in sys.argv:
+        hideStatus()
+        expectedArgs += 1
+    if "-ratio" in sys.argv:
+        setRatio(getFlagValue("-ratio"))
+        expectedArgs += 2
+    if "-ignorelist" in sys.argv:
+        setIgnoreList(getFlagValue("-ignorelist"))
+        expectedArgs += 2
+    if len(sys.argv) < expectedArgs:
+        print "Usage error: <baseline_doc.html> and <source_doc.html> parameters required."
+    
+    # get baseline and source text from their files...
+    baseDocText = loadDocumentText(sys.argv[expectedArgs-2])
+    if baseDocText == None:
+        return
+    sourceDocText = loadDocumentText(sys.argv[expectedArgs-1])
+    if sourceDocText == None:
+        return
+    baseDoc, sourceDoc = diffLinks(baseDocText, sourceDocText)
+    
+    
+processCmdParams()
+        
+        
