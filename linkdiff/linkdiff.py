@@ -9,6 +9,7 @@ import os.path
 import codecs
 import json
 import urllib
+import time
 
 # Subclass the parser to build the DOM described below. Since the
 # DOM will only be used for tracking links and what they link to, the
@@ -76,6 +77,7 @@ class LinkAndTextHTMLParser(HTMLParser):
         self.linkCountIndex = 0
         self.head = None
         self.droppedTagCount = 0
+        HTMLParser.reset(self) # among other things, resets the line numbering :-)
         HTMLParser.feed(self, markup)
         HTMLParser.close(self)
         self.head = None
@@ -170,12 +172,12 @@ class LinkElement(Element):
         self.matchRatio = 0.0
         self.correctRatio = 0.0
     def __str__(self):
-        return '{ ' + ('"id":"' + self.id + '" ' if self.id != '' else '') + '"index":' + str(self.index) + ',"status":"' + self.status + '","href":"' + self.href.encode('ascii', 'xmlcharrefreplace') + '","matchIndex":' + str(self.matchIndex) + ',"matchRatio":' + str(self.matchRatio) + ',"correctRatio":' + str(self.correctRatio) + ',"lineNo":' + str(self.lineNo) + ' }'
+        return '{' + '"index":' + str(self.index) + ',"matchIndex":' + str(self.matchIndex) + ',"matchRatio":' + str(self.matchRatio)[:5] + ',"correctRatio":' + str(self.correctRatio)[:5] + ',"lineNo":' + str(self.lineNo) + ',"status":"' + self.status + '","href":"' + self.href.encode('ascii', 'xmlcharrefreplace') + '"' + (',"id":"' + self.id + '"' if self.id != '' else '') + '}'
 
 SLIDING_WINDOW_SIZE = 50
-SHOW_STATUS = True
+SHOW_STATUS = False
 
-def diffLinks(markupBaseline, markupSource):
+def diffLinks(markupBaseline, markupSource, stats):
     parser = LinkAndTextHTMLParser()
     if SHOW_STATUS:
         print 'Parsing baseline document...'
@@ -183,6 +185,7 @@ def diffLinks(markupBaseline, markupSource):
     if SHOW_STATUS:
         print 'Parsing source document...'
     srcDocument = parser.parse(markupSource)
+    stats["potentialMatchingLinksSetSize"] = min(len(baseDocument.links),len(srcDocument.links))
     if SHOW_STATUS:
         print 'Matching links between documents...'
     baseLinkIndex = 0
@@ -192,6 +195,7 @@ def diffLinks(markupBaseline, markupSource):
     baseMatches = [] # this collects matches for both sides (the source-side is reachable via the base's matchIndex value)
     retryBaselineLinks = []
     retrySourceLinks = []
+    timemarker = time.time()
     while baseLinkIndex < baseLinkIndexLen or srcLinkIndex < srcLinkIndexLen:
         if baseLinkIndex < baseLinkIndexLen:
             srcSlidingWindowIndex = srcLinkIndex
@@ -225,16 +229,21 @@ def diffLinks(markupBaseline, markupSource):
             else:
                 retrySourceLinks.append(srcDocument.links[srcLinkIndex])
             srcLinkIndex += 1
+        if SHOW_STATUS and (time.time() - timemarker) > 10: # in seconds
+            timemarker = time.time()
+            print "  " + str( float(baseLinkIndex + srcLinkIndex) / float(baseLinkIndexLen + srcLinkIndexLen) * 100 )[:4] + "% complete...\r",
+    stats["matchingLinksTotal"] = len(baseMatches)
     if SHOW_STATUS:
         print 'Verifying correctness of matched links...'
     for i in xrange(len(baseMatches)):
-        check4Correct(baseDocument, baseMatches[i], srcDocument, srcDocument.links[baseMatches[i].matchIndex])
+        check4Correct(baseDocument, baseMatches[i], srcDocument, srcDocument.links[baseMatches[i].matchIndex], stats)
     if SHOW_STATUS:
         print 'Last-chance matching previously non-matched links between documents...'
     for baseUnmatchedIndex in xrange(len(retryBaselineLinks)):
         for srcUnmatchedIndex in xrange(len(retrySourceLinks)):
             if check4Match(retryBaselineLinks[baseUnmatchedIndex], retrySourceLinks[srcUnmatchedIndex]):
-                check4Correct(baseDocument, retryBaselineLinks[baseUnmatchedIndex], srcDocument, retrySourceLinks[srcUnmatchedIndex])
+                stats["matchingLinksTotal"] += 1
+                check4Correct(baseDocument, retryBaselineLinks[baseUnmatchedIndex], srcDocument, retrySourceLinks[srcUnmatchedIndex], stats)
                 del retrySourceLinks[srcUnmatchedIndex] # Since we don't need to re-check this instance (it's now matched)
                 break
             elif check4External(retrySourceLinks[srcUnmatchedIndex]):
@@ -269,18 +278,20 @@ IGNORE_LIST = {}
 
 # Only called after a pair of links has been matched. This "upgrades" the match (if possible) to an 
 # additional state: skipped, correct, correct-external, broken, or the [non-upgrade] matched-external.
-def check4Correct(doc1, link1, doc2, link2):
+def check4Correct(doc1, link1, doc2, link2, stats):
     if link1.href in IGNORE_LIST or link2.href in IGNORE_LIST:
         if link1.href in IGNORE_LIST:
             link1.status = 'skipped'
         if link2.href in IGNORE_LIST:
             link2.status = 'skipped'
+        stats["potentialMatchingLinksSetSize"] -= 1 # skipped items are not a candidate for matching.
         return
     if check4External(link1) or check4External(link2):
         if check4External(link1) and check4External(link2):
             if link1.href == link2.href:
                 link1.status = link2.status = 'correct-external'
                 link1.correctRatio = link2.correctRatio = 1.0
+                stats["correctLinksTotal"] += 1
             else:
                 link1.status = link2.status = 'matched-external'
         elif check4External(link1):
@@ -300,7 +311,7 @@ def check4Correct(doc1, link1, doc2, link2):
     link1.correctRatio = link2.correctRatio = destCmpRatio
     if destCmpRatio > MATCH_RATIO_THRESHOLD:
         link1.status = link2.status = 'correct'
-
+    stats["correctLinksTotal"] += 1
 
 def getAndCompareRatio(elem1, elem2):
     text1 = getContextualText(elem1)
@@ -369,7 +380,7 @@ def dumpDocument(doc, enumAll=False):
         counter += 1
     print "total nodes in document: " + str(counter)
     
-def runTests():
+def runTests(stats):
     global SHOW_STATUS #intend to modify a global variable.
     oldShowStatus = SHOW_STATUS
     SHOW_STATUS = False
@@ -458,7 +469,7 @@ as sequences of characters, and don't want to <a href=#sync>synch</a> up on <i>b
 The optional arguments a and b are sequences to be compared; both will <tt>default</tt> to empty strings. The elements of both sequences must be hashable--the \
 optional argument autoskip may stop the automatic skipping behavior for the <a href=#not_matched>stop algorithm</a>. \
 With the addition of a new stop algorithm in this document, you may now see that things aren't quite <a href='http://test/test/test.com'>the same</a>.."
-    doc, doc2 = diffLinks(markup1, markup2)
+    doc, doc2 = diffLinks(markup1, markup2, stats)
     istrue(len(doc.links), 6, "test9: parsing validation-- 6 links in markup1")
     istrue(len(doc2.links), 6, "test9: parsing validation-- 6 links in markup2")
     istrue(doc.links[0].status, "broken", "test9: link matching validation: link is broken")
@@ -506,7 +517,7 @@ With the addition of a new stop algorithm in this document, you may now see that
     markup2 += "in the spec or other linked <a href='http://external/place2'>spec</a>. <a href=#matched>Correctness</a>, in this sense, can only be determined\n"
     markup2 += "by comparing the links to a canonical 'correct' source. In the case of the W3C HTML\n"
     markup2 += "spec, the source used for determining correctness is the WHATWG <span id=matched>version</span> of the spec."
-    doc, doc2 = diffLinks(markup1, markup2)
+    doc, doc2 = diffLinks(markup1, markup2, stats)
     istrue(len(doc.links), 2, "test10: parsing validation-- 2 links in markup1")
     istrue(len(doc2.links), 2, "test10: parsing validation-- 2 links in markup2")
     istrue(doc.links[0].status, "matched-external", "test10: link matching validation: link is matched, but external (and not correct)")
@@ -533,38 +544,59 @@ def cmdhelp():
     print "  The tool compares the hyperlinks (anchor tags with an href attribute) in a baseline"
     print "  document with those in a source document. It checks that both documents have the same"
     print "  set of hyperlinks, and that those hyperlinks link to the same relative places within"
-    print "  their respective documents."
+    print "  their respective documents. The output is a JSON structure of the diff results."
     print ""
     print "Usage:"
     print ""
     print "  linkdiff [flags] <baseline html file> <source html file>"
     print ""
-    print "      The baseline and source files may be paths to the respective files on disk, or URLs."
-    print "      The only supported protocols for URLs are 'http' and 'https'; any other protocol will"
-    print "      be interpreted as a local file path."
+    print "    The baseline and source files may be paths to the respective files on disk, or URLs."
+    print "    The only supported protocols for URLs are 'http' and 'https'; any other protocol will"
+    print "    be interpreted as a local file path."
     print ""
     print "Flags:"
+    print ""
     print "  -ratio <value between 0 and 1>"
-    print "      Example: linkdiff -ratio 0.9 baseline_doc.html source_doc.html"
+    print ""
+    print "    Example: linkdiff -ratio 0.9 baseline_doc.html source_doc.html"
+    print ""
     print "      Overrides the default ratio used for verifying that a link is in the same place in"
     print "      both specs, and that the hyperlink's targets are in the same relative place. A low"
     print "      ratio (e.g., 0.25 or 25%) is more permissive in that only 25% of the relative surrounding"
     print "      content must be the same to be considered a match. A higher ratio (e.g., 0.9 or 90%) is"
     print "      more strict. The default (if the flag is not supplied) is 0.7 or 70%."
+    print ""
     print "  -ignorelist <ignorelist_file>"
-    print "      Example: linkdiff -ignorelist ignore_list.json baseline_doc.html source_doc.html"
+    print ""
+    print "    Example: linkdiff -ignorelist ignore_list.json baseline_doc.html source_doc.html"
+    print ""
     print "      The ignore list is a file containing a JSON object with a single property named"
     print "      'ignoreList' whose value is an array of strings. The strings should contain the absolute"
     print "      or relative URLs to skip/ignore during link verification. String matching is used to"
     print "      apply the strings to href values, so exact matches are required. The ignore list applies"
     print "      to both baseline and source html files"
-    print "  -V"
-    print "      Example: linkdiff -V baseline_doc.html source_doc.html"
-    print "      Turns off the verbose status messages during processing."
+    print ""
+    print "  -statsonly"
+    print ""
+    print "    Example: linkdiff -statsonly http://location/of/baseline ../source/doc/location.htm"
+    print ""
+    print "      The JSON output is limited to the statistical values from the processing results. The"
+    print "      detailed link report for both baseline and source documents is omitted."
+    print ""
+    print "  -v"
+    print ""
+    print "    Example: linkdiff -v baseline_doc.html source_doc.html"
+    print ""
+    print "      Shows verbose status messages during processing. Useful for monitoring the progress"
+    print "      of the tool."
+    print ""
     print "  -runtests"
-    print "      Example: linkdiff -runtests"
+    print ""
+    print "    Example: linkdiff -runtests"
+    print ""
     print "      When this flag is used, the <baseline html file> and <source html file> input values"
     print "      are not required. This flag runs the self-tests to ensure the code is working as expected"
+    print ""
 
 # Test for existance before calling...may return None as failure mode
 def getFlagValue(flag):
@@ -584,7 +616,6 @@ def setRatio(newRatio):
     MATCH_RATIO_THRESHOLD = newRatio
     if SHOW_STATUS:
         print "Using custom ratio: " + str(MATCH_RATIO_THRESHOLD)
-
 
 def toUnicode(raw):
     if raw.startswith(codecs.BOM_UTF16_LE) or raw.startswith(codecs.BOM_UTF16_BE):
@@ -624,15 +655,15 @@ def setIgnoreList(newListFile):
     if SHOW_STATUS:
         print "Using ignore list; entries found: " + str(counter)
     
-def hideStatus():
+def showStatus():
     global SHOW_STATUS
-    SHOW_STATUS = False
-
+    SHOW_STATUS = True
+    
 def loadURL(url):
     try:
-        urlhandle = urllib.urlopen(url)
         if SHOW_STATUS:
             print "Getting '" + url + "' from the network..."
+        urlhandle = urllib.urlopen(url)
         contents = toUnicode(urlhandle.read())
         urlhandle.close()
         return contents
@@ -648,14 +679,21 @@ def loadDocumentText(urlOrPath):
     else: #assume file path...
         return getTextFromLocalFile(urlOrPath) # may return None
 
-def processCmdParams():        
+def processCmdParams():
+    stats = {}
+    stats["ratioThreshold"] = MATCH_RATIO_THRESHOLD
+    stats["correctLinksTotal"] = 0
     if len(sys.argv) == 1:
         return cmdhelp()
     if "-runtests" in sys.argv:
-        return runTests()
+        return runTests(stats)
     expectedArgs = 3
-    if "-V" in sys.argv:
-        hideStatus()
+    showAllStats = True
+    if "-v" in sys.argv:
+        showStatus()
+        expectedArgs += 1
+    if "-statsonly" in sys.argv:
+        showAllStats = False
         expectedArgs += 1
     if "-ratio" in sys.argv:
         setRatio(getFlagValue("-ratio"))
@@ -673,8 +711,38 @@ def processCmdParams():
     sourceDocText = loadDocumentText(sys.argv[expectedArgs-1])
     if sourceDocText == None:
         return
-    baseDoc, sourceDoc = diffLinks(baseDocText, sourceDocText)
-    
+    baseDoc, sourceDoc = diffLinks(baseDocText, sourceDocText, stats)
+    if SHOW_STATUS:
+        print "JSON output:"
+        print ""
+    print "{"
+    print '  "ratioThreshold": ' + str(stats["ratioThreshold"]) + ","
+    print '  "matchingLinksTotal": ' + str(stats["matchingLinksTotal"]) + ","
+    print '  "correctLinksTotal": ' + str(stats["correctLinksTotal"]) + ","
+    print '  "potentialMatchingLinksSetSize": ' + str(stats["potentialMatchingLinksSetSize"]) + ","
+    print '  "percentMatched": ' + str(float(stats["matchingLinksTotal"]) / float(stats["potentialMatchingLinksSetSize"]))[:5] + ","
+    print '  "percentCorrect": ' + str(float(stats["correctLinksTotal"]) / float(stats["potentialMatchingLinksSetSize"]))[:5] + ","
+    print '  "baselineDoc": {'
+    baseLinkTotal = len(baseDoc.links)
+    print '    "linksTotal": ' + str(baseLinkTotal) + ","
+    print '    "nonMatchedTotal": ' + str(baseLinkTotal - stats["matchingLinksTotal"]) + ("," if showAllStats else "")
+    if showAllStats:
+        print '    "linkIndex": [ '
+        for link in baseDoc.links:
+            print '      ' + str(link) + ("," if link.index < (baseLinkTotal-1) else "")
+        print '    ]'
+    print '  },'
+    print '  "sourceDoc": {'
+    srcLinkTotal = len(sourceDoc.links)
+    print '    "linksTotal": ' + str(srcLinkTotal) + ","
+    print '    "nonMatchedTotal": ' + str(srcLinkTotal - stats["matchingLinksTotal"]) + ("," if showAllStats else "")
+    if showAllStats:
+        print '    "linkIndex": [ '
+        for link in sourceDoc.links:
+            print '      ' + str(link) + ("," if link.index < (srcLinkTotal-1) else "")
+        print '    ]'
+    print '  }'
+    print "}"
     
 processCmdParams()
         
