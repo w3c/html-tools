@@ -235,8 +235,12 @@ def diffLinks(markupBaseline, markupSource, stats):
     stats["matchingLinksTotal"] = len(baseMatches)
     if SHOW_STATUS:
         print 'Verifying correctness of matched links...'
+    timemarker = time.time()
     for i in xrange(len(baseMatches)):
         check4Correct(baseDocument, baseMatches[i], srcDocument, srcDocument.links[baseMatches[i].matchIndex], stats)
+        if SHOW_STATUS and (i % 20 == 19) and (time.time() - timemarker) > 10: # in seconds
+            timemarker = time.time()
+            print "  " + str( float(i) / float(len(baseMatches)) * 100 )[:4] + "% complete...\r",
     if SHOW_STATUS:
         print 'Last-chance matching previously non-matched links between documents...'
     for baseUnmatchedIndex in xrange(len(retryBaselineLinks)):
@@ -354,7 +358,7 @@ def check4External(link):
 
 
 def getLinkTarget(href):
-    return href[1:]
+    return urllib.unquote(href[1:])
 
 # Validation testing
 # =====================================================
@@ -532,6 +536,18 @@ With the addition of a new stop algorithm in this document, you may now see that
     istrue(doc.links[1].matchRatio > 0.99, True, "test10: link matching validation: Ratio is 1.0")
     istrue(doc.links[1].correctRatio < 0.28, True, "test10: link matching validation: not correct--0.275 ratio")
     #dumpDocument(doc, True)
+    
+    # test 11 - href's with percent-encoding... (one-way, works for hrefs, not for targets)
+    # note, Chrome 53 stable: tries to match link targets using both the pre-decoded text as well as the post-decoded text...Firefox/Edge do not do this, so this tool will not either.
+    markup1 = '<p id="first()">first target</p><a href="#last()">goto last</a><a href="#last%28%29">alternate last</a>. This is some content. And here is some links: <a href="#first%28%29">goto first</a><p id="last%28%29">last target</p>'
+    doc, doc2 = diffLinks(markup1, markup1, stats)
+    istrue(doc.links[0].href, "#last()", "test11: no fancy escaping done to these characters by the HTMLParser implementation.")
+    istrue(doc.links[0].status, "broken", "test11: percent-encoded attribute values in id are not converted to match.")
+    istrue(doc.links[1].href, "#last%28%29", "test11: no fancy escaping done to percent-encoded characters by the HTMLParser implementation.")
+    istrue(doc.links[1].status, "broken", "test11: href values are always decoded before checking for literal matching ids (see note on Chrome above)")
+    istrue(doc.links[2].status, "correct", "test11: percent-encoded attribute values in hrefs are decoded to match.")
+    #dumpDocument(doc, True)
+    
     print 'All tests passed'
     SHOW_STATUS = oldShowStatus
 
@@ -688,7 +704,7 @@ def processCmdParams():
     if "-runtests" in sys.argv:
         return runTests(stats)
     expectedArgs = 3
-    showAllStats = True
+    showAllStats = True    
     if "-v" in sys.argv:
         showStatus()
         expectedArgs += 1
