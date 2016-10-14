@@ -58,7 +58,7 @@ class LinkAndTextHTMLParser(HTMLParser):
 
     def handle_charref(self, name):
         self.handle_data("&#"+name+";")
-        
+
     def _append_to_head(self, node):
         if self.head == None:
             self.head = node
@@ -84,7 +84,7 @@ class LinkAndTextHTMLParser(HTMLParser):
         doc = self.doc
         self.doc = None
         return doc
-        
+
 # Document produced by the Parser has the following IDL
 
 # interface Document {
@@ -177,6 +177,23 @@ class LinkElement(Element):
 SLIDING_WINDOW_SIZE = 50
 SHOW_STATUS = False
 
+def searchLimited(link, linkText, otherLinkList, initialOffset, startOffsetMultiplier, otherFailureList = None, checkExternal = False):
+    startFrom = min(initialOffset + (startOffsetMultiplier * SLIDING_WINDOW_SIZE), len(otherLinkList)-1)
+    for i in xrange(startFrom, min(startFrom + SLIDING_WINDOW_SIZE, len(otherLinkList))):
+        if check4Match(link, otherLinkList[i], linkText):
+            # Caller will skip the initialOffset to the returned index... so add skipped otherLinkList items to the failure list...
+            while otherFailureList != None and initialOffset < i:
+                otherFailureList.append(otherLinkList[initialOffset])
+                initialOffset += 1
+            return i
+        elif checkExternal and check4External(otherLinkList[i]):
+            otherLinkList[i].status = 'non-matched-external'
+    return None
+
+def percentComplete(numerator, denomator):
+    return "  " + str( float(numerator) / float(denomator) * 100 )[:4] + "% complete..."
+
+# Returns a tuple of documents associated with the baseline, source documents.
 def diffLinks(markupBaseline, markupSource, stats):
     parser = LinkAndTextHTMLParser()
     if SHOW_STATUS:
@@ -189,80 +206,99 @@ def diffLinks(markupBaseline, markupSource, stats):
     if SHOW_STATUS:
         print 'Matching links between documents...'
     baseLinkIndex = 0
+    baseScoutIteration = 0
     baseLinkIndexLen = len(baseDocument.links)
     srcLinkIndex = 0
+    srcScoutIteration = 0
     srcLinkIndexLen = len(srcDocument.links)
     baseMatches = [] # this collects matches for both sides (the source-side is reachable via the base's matchIndex value)
     retryBaselineLinks = []
     retrySourceLinks = []
+    repeatMissCount = 0 # When this count reaches the count of the sliding window size, then switch to "scout mode"
     timemarker = time.time()
     while baseLinkIndex < baseLinkIndexLen or srcLinkIndex < srcLinkIndexLen:
         if baseLinkIndex < baseLinkIndexLen:
-            srcSlidingWindowIndex = srcLinkIndex
-            srcSlidingWindowLimit = min(srcLinkIndex + SLIDING_WINDOW_SIZE, srcLinkIndexLen)
-            while srcSlidingWindowIndex < srcSlidingWindowLimit:
-                if check4Match(baseDocument.links[baseLinkIndex], srcDocument.links[srcSlidingWindowIndex]):
-                    baseMatches.append(baseDocument.links[baseLinkIndex])
-                    # Assume this is a new "synchronization point" between the documents
-                    # Skip intervening links (for later) and advance indexes.
-                    while srcLinkIndex < srcSlidingWindowIndex:
-                        retrySourceLinks.append(srcDocument.links[srcLinkIndex])
-                        srcLinkIndex += 1
-                    srcLinkIndex = srcSlidingWindowIndex + 1 #start the next iteration on the next (un-matched) link
-                    break
-                srcSlidingWindowIndex += 1
+            baseLink = baseDocument.links[baseLinkIndex]
+            srcMatchIndex = searchLimited(baseLink, getContextualText(baseLink), srcDocument.links, srcLinkIndex, srcScoutIteration, retrySourceLinks)
+            if srcMatchIndex != None:
+                baseMatches.append(baseLink)
+                srcLinkIndex = srcMatchIndex + 1 #start the next iteration on the next (un-matched) link
+                srcScoutIteration = 0 # end scout mode if a result is found.
+                repeatMissCount = 0
+                baseLinkIndex += 1
+            elif srcScoutIteration == 0 or (srcLinkIndex + (srcScoutIteration * SLIDING_WINDOW_SIZE)) > srcLinkIndexLen: #no match: not scout mode, or scout mode reached the end...
+                retryBaselineLinks.append(baseLink)
+                repeatMissCount += 1
+                baseLinkIndex += 1
+                # To skip baseLinkIndex ahead here, check for srcScoutIteration > 0, and add the code.
+                srcScoutIteration = 0 # end scout mode if it was running
+            else: #scout mode AND no match found this iteration
+                srcScoutIteration += 1
+        if srcLinkIndex < srcLinkIndexLen:
+            srcLink = srcDocument.links[srcLinkIndex]
+            baseMatchIndex = searchLimited(srcLink, getContextualText(srcLink), baseDocument.links, baseLinkIndex, baseScoutIteration, retryBaselineLinks)
+            if baseMatchIndex != None:
+                baseMatches.append(baseDocument.links[baseMatchIndex])
+                baseLinkIndex = baseMatchIndex + 1
+                baseScoutIteration = 0
+                repeatMissCount = 0
+                srcLinkIndex += 1
+            elif baseScoutIteration == 0 or (baseLinkIndex + (baseScoutIteration * SLIDING_WINDOW_SIZE)) > baseLinkIndexLen:
+                retrySourceLinks.append(srcLink)
+                repeatMissCount += 1
+                srcLinkIndex += 1
+                baseScoutIteration = 0
             else:
-                retryBaselineLinks.append(baseDocument.links[baseLinkIndex])
-            baseLinkIndex += 1
-        if srcLinkIndex < srcLinkIndexLen:   
-            baseSlidingWindowIndex = baseLinkIndex
-            baseSlidingWindowLimit = min(baseLinkIndex + SLIDING_WINDOW_SIZE, baseLinkIndexLen)
-            while baseSlidingWindowIndex < baseSlidingWindowLimit:
-                if check4Match(baseDocument.links[baseSlidingWindowIndex], srcDocument.links[srcLinkIndex]):
-                    baseMatches.append(baseDocument.links[baseSlidingWindowIndex])
-                    while baseLinkIndex < baseSlidingWindowIndex:
-                        retryBaselineLinks.append(baseDocument.links[baseLinkIndex])
-                        baseLinkIndex += 1
-                    baseLinkIndex = baseSlidingWindowIndex + 1
-                    break
-                baseSlidingWindowIndex += 1
-            else:
-                retrySourceLinks.append(srcDocument.links[srcLinkIndex])
-            srcLinkIndex += 1
+                baseScoutIteration += 1
+        if repeatMissCount >= (SLIDING_WINDOW_SIZE * 2): #an entire sliding window of both sides matched nothing; switch to scout mode...
+            baseScoutIteration = 1
+            srcScoutIteration = 1
+            # backup the base and srcLinkIndex values to their previous index, because scout mode 
+            # starts at the Sliding window offset, and we don't want to skip a sliding window worth 
+            #of potential matches on the recently incremented base/src indexes...
+            repeatMissCount = 0
+            baseLinkIndex -= 1
+            srcLinkIndex -= 1
         if SHOW_STATUS and (time.time() - timemarker) > 10: # in seconds
             timemarker = time.time()
-            print "  " + str( float(baseLinkIndex + srcLinkIndex) / float(baseLinkIndexLen + srcLinkIndexLen) * 100 )[:4] + "% complete...\r",
+            print percentComplete(baseLinkIndex + srcLinkIndex, baseLinkIndexLen + srcLinkIndexLen) + "\r",
     stats["matchingLinksTotal"] = len(baseMatches)
     if SHOW_STATUS:
         print 'Verifying correctness of matched links...'
     timemarker = time.time()
     for i in xrange(len(baseMatches)):
         check4Correct(baseDocument, baseMatches[i], srcDocument, srcDocument.links[baseMatches[i].matchIndex], stats)
-        if SHOW_STATUS and (i % 20 == 19) and (time.time() - timemarker) > 10: # in seconds
+        if SHOW_STATUS and (i % 20 == 0) and (time.time() - timemarker) > 10: # in seconds
             timemarker = time.time()
-            print "  " + str( float(i) / float(len(baseMatches)) * 100 )[:4] + "% complete...\r",
+            print percentComplete(i, len(baseMatches)) + "\r",
     if SHOW_STATUS:
         print 'Last-chance matching previously non-matched links between documents...'
-    for baseUnmatchedIndex in xrange(len(retryBaselineLinks)):
-        for srcUnmatchedIndex in xrange(len(retrySourceLinks)):
-            if check4Match(retryBaselineLinks[baseUnmatchedIndex], retrySourceLinks[srcUnmatchedIndex]):
+    timemarker = time.time()
+    for baseUnIndex in xrange(len(retryBaselineLinks)):
+        baseUnElem = retryBaselineLinks[baseUnIndex]
+        startOffsetMultiplier = 0
+        while startOffsetMultiplier * SLIDING_WINDOW_SIZE < len(retrySourceLinks):
+            srcUnIndex = searchLimited(baseUnElem, getContextualText(baseUnElem), retrySourceLinks, 0, startOffsetMultiplier, None, True)
+            startOffsetMultiplier += 1
+            if srcUnIndex != None:
                 stats["matchingLinksTotal"] += 1
-                check4Correct(baseDocument, retryBaselineLinks[baseUnmatchedIndex], srcDocument, retrySourceLinks[srcUnmatchedIndex], stats)
-                del retrySourceLinks[srcUnmatchedIndex] # Since we don't need to re-check this instance (it's now matched)
-                break
-            elif check4External(retrySourceLinks[srcUnmatchedIndex]):
-                retrySourceLinks[srcUnmatchedIndex].status = 'non-matched-external'
-        else:
-            if check4External(retryBaselineLinks[baseUnmatchedIndex]):
-                retryBaselineLinks[baseUnmatchedIndex].status = 'non-matched-external'
+                check4Correct(baseDocument, baseUnElem, srcDocument, retrySourceLinks[srcUnIndex], stats)
+                del retrySourceLinks[srcUnIndex] # Since we don't need to re-check this instance (it's now matched)
+            else:
+                if check4External(baseUnElem):
+                    baseUnElem.status = 'non-matched-external'
+            if SHOW_STATUS and (time.time() - timemarker) > 10:
+                print percentComplete(baseUnIndex, len(retryBaselineLinks)) + "\r",
     return (baseDocument, srcDocument)
 
 MATCH_RATIO_THRESHOLD = 0.7
 
-def check4Match(link1, link2):
+def check4Match(link1, link2, preComputedLink1Text = None, preComputedLink2Text = None):
     if link1._matched or link2._matched:
         return False
-    computedRatio = getAndCompareRatio(link1, link2)
+    text1 = preComputedLink1Text if preComputedLink1Text != None else getContextualText(link1)
+    text2 = preComputedLink2Text if preComputedLink2Text != None else getContextualText(link2)
+    computedRatio = compareRatio(text1, text2)
     if computedRatio > MATCH_RATIO_THRESHOLD:
         link1.matchRatio = link2.matchRatio = computedRatio
         link1.status = link2.status = 'matched'
@@ -280,7 +316,7 @@ def check4Match(link1, link2):
 
 IGNORE_LIST = {}
 
-# Only called after a pair of links has been matched. This "upgrades" the match (if possible) to an 
+# Only called after a pair of links has been matched. This "upgrades" the match (if possible) to an
 # additional state: skipped, correct, correct-external, broken, or the [non-upgrade] matched-external.
 def check4Correct(doc1, link1, doc2, link2, stats):
     if link1.href in IGNORE_LIST or link2.href in IGNORE_LIST:
@@ -320,12 +356,14 @@ def check4Correct(doc1, link1, doc2, link2, stats):
 def getAndCompareRatio(elem1, elem2):
     text1 = getContextualText(elem1)
     text2 = getContextualText(elem2)
+    return compareRatio(text1, text2)
+
+def compareRatio(text1, text2):
     matcher = SequenceMatcher(lambda x: x in ' \t', text1, text2)
     ratio = matcher.quick_ratio()
-    if ratio >= 0.5 and ratio < 0.9:
+    if ratio >= (MATCH_RATIO_THRESHOLD - 0.2) and ratio < (MATCH_RATIO_THRESHOLD + 0.2):
         ratio = matcher.ratio()
     return ratio
-
 
 HALF_CONTEXT_MIN = 150
 
@@ -383,13 +421,13 @@ def dumpDocument(doc, enumAll=False):
         head = head.next
         counter += 1
     print "total nodes in document: " + str(counter)
-    
+
 def runTests(stats):
     global SHOW_STATUS #intend to modify a global variable.
     oldShowStatus = SHOW_STATUS
     SHOW_STATUS = False
     IGNORE_LIST['http://test/test/test.com'] = True
-    
+
     # test 1
     parser = LinkAndTextHTMLParser()
     doc = parser.parse("<hello/><there id ='foo' /></there></hello>");
@@ -424,17 +462,17 @@ def runTests(stats):
     istrue(doc.start.next.next.next.next.next.next, doc.links[0], "test3: the link was indexed appropriately")
     istrue(doc.links[0].href, u"#\xa9", "test3: href value with entity-ref converted to unicode by the parser")
     #dumpDocument(doc, True)
-    
+
     # test 4
     doc = parser.parse(u'<div id="&copy;"></div><a href="#&copy;"></a>')
     istrue(doc.getElementById(doc.links[0].href[1:]), doc.start, "test4: unicode attribute handling and escaping is self-consistent for lookups")
     #dumpDocument(doc, True)
-    
+
     # test 5
     doc = parser.parse('<div id="target">first</div><div id="target">second</div><a href="#target"></a>')
     istrue(doc.getElementById('target'), doc.start, 'test5: for duplicate ids, link targets (and getElementById) should ignore all but the first ocurence in document order')
     #dumpDocument(doc, True)
-    
+
     # test 6 - getContextualText
     doc = parser.parse("The <b>freeway</b> can get quite backed-up; that's why I enjoy riding the <div id=target>Connector</div>. It saves me \n\
 lots of time on my commute. Microsoft <i>is quite awesome</i> to provide such a service to their <span class=employee><a>employees</a></span> \n\
@@ -445,7 +483,7 @@ but then I wouldn't be able to write tests while on the bus.", "test6: text extr
     istrue(getContextualText(doc.getElementById("target")), "The freeway can get quite backed-up; that's why I enjoy riding the Connector. It saves me \n\
 lots of time on my commute. Microsoft is quite awesome to provide such a service to their employees \n\
 that live in the Pugot So", "test6: target text extraction")
-    
+
     # test 7 - getAndCompareRatio
     doc = parser.parse("Here's some text that is the same<a href=hi>")
     doc2 = parser.parse("And this sentance won't match up anywhere<a href=bar>")
@@ -453,7 +491,7 @@ that live in the Pugot So", "test6: target text extraction")
     istrue(getAndCompareRatio(doc.links[0], doc2.links[0]) < 0.09, True, "test7: getAndCompareRatio working for non-similar sentances")
     doc2 = parser.parse("Here's some text that isn't the same<a href=foo>")
     istrue(getAndCompareRatio(doc.links[0], doc2.links[0]) > 0.95, True, "test7: getAndCompareRatio working for similar sentances")
-    
+
     # test 8 - check4Match(link1, link2)
     istrue(check4Match(doc.links[0], doc2.links[0]), True, "test8: check4Match finds the two links that are similar a match!")
     istrue(doc.links[0].status, "matched", "test8: link status updated to 'matched'")
@@ -504,9 +542,9 @@ With the addition of a new stop algorithm in this document, you may now see that
     istrue(doc.links[5].matchIndex, 4, "test9: link matching validation: matched at 4")
     istrue(doc.links[5].matchRatio < 0.2, True, "test9: link matching validation: not matched, low ratio (0.192)")
     istrue(doc.links[5].correctRatio, 0.0, "test9: link matching validation: Correctness n/a (0.0)")
-    #dumpDocument(doc, True) 
-    #dumpDocument(doc2, True) 
-    
+    #dumpDocument(doc, True)
+    #dumpDocument(doc2, True)
+
     # test 10 - check 'matched' and 'matched-external'
     markup1 =  "<span id=matched>One</span> of the common, difficult to figure-out problems in the current HTML spec is\n"
     markup1 += "whether links are 'correct'. Not 'correct' as in syntax or as opposite to broken\n"
@@ -536,7 +574,7 @@ With the addition of a new stop algorithm in this document, you may now see that
     istrue(doc.links[1].matchRatio > 0.99, True, "test10: link matching validation: Ratio is 1.0")
     istrue(doc.links[1].correctRatio < 0.28, True, "test10: link matching validation: not correct--0.275 ratio")
     #dumpDocument(doc, True)
-    
+
     # test 11 - href's with percent-encoding... (one-way, works for hrefs, not for targets)
     # note, Chrome 53 stable: tries to match link targets using both the pre-decoded text as well as the post-decoded text...Firefox/Edge do not do this, so this tool will not either.
     markup1 = '<p id="first()">first target</p><a href="#last()">goto last</a><a href="#last%28%29">alternate last</a>. This is some content. And here is some links: <a href="#first%28%29">goto first</a><p id="last%28%29">last target</p>'
@@ -547,7 +585,7 @@ With the addition of a new stop algorithm in this document, you may now see that
     istrue(doc.links[1].status, "broken", "test11: href values are always decoded before checking for literal matching ids (see note on Chrome above)")
     istrue(doc.links[2].status, "correct", "test11: percent-encoded attribute values in hrefs are decoded to match.")
     #dumpDocument(doc, True)
-    
+
     print 'All tests passed'
     SHOW_STATUS = oldShowStatus
 
@@ -640,7 +678,7 @@ def toUnicode(raw):
         return raw.decode("utf-8-sig", "replace") #decoding errors substitute the replacement character
     else:
         return raw.decode("utf-8", "replace") # assume it.
-    
+
 def getTextFromLocalFile(fileString):
     if fileString[0:1] == '"':
         fileString = fileString[1:-1]
@@ -650,7 +688,7 @@ def getTextFromLocalFile(fileString):
         return None
     with open(fileString, "r") as file:
         return toUnicode(file.read())
-    
+
 def setIgnoreList(newListFile):
     global IGNORE_LIST
     if newListFile == None:
@@ -670,11 +708,11 @@ def setIgnoreList(newListFile):
             counter += 1
     if SHOW_STATUS:
         print "Using ignore list; entries found: " + str(counter)
-    
+
 def showStatus():
     global SHOW_STATUS
     SHOW_STATUS = True
-    
+
 def loadURL(url):
     try:
         if SHOW_STATUS:
@@ -704,7 +742,7 @@ def processCmdParams():
     if "-runtests" in sys.argv:
         return runTests(stats)
     expectedArgs = 3
-    showAllStats = True    
+    showAllStats = True
     if "-v" in sys.argv:
         showStatus()
         expectedArgs += 1
@@ -719,7 +757,7 @@ def processCmdParams():
         expectedArgs += 2
     if len(sys.argv) < expectedArgs:
         print "Usage error: <baseline_doc.html> and <source_doc.html> parameters required."
-    
+
     # get baseline and source text from their files...
     baseDocText = loadDocumentText(sys.argv[expectedArgs-2])
     if baseDocText == None:
@@ -759,7 +797,7 @@ def processCmdParams():
         print '    ]'
     print '  }'
     print "}"
-    
+
 processCmdParams()
-        
-        
+
+
