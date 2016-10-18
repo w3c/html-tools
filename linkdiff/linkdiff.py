@@ -10,6 +10,8 @@ import codecs
 import json
 import urllib
 import time
+import multiprocessing
+import thread
 
 # Subclass the parser to build the DOM described below. Since the
 # DOM will only be used for tracking links and what they link to, the
@@ -110,11 +112,11 @@ class LinkAndTextHTMLParser(HTMLParser):
 
 # interface LinkElement : Element {
 #   readonly attribute unsigned long index;
-#   readonly attribute LinkTreeNodeStatus status;
+#            attribute LinkTreeNodeStatus status;
 #   readonly attribute str href;
-#   readonly attribute long matchIndex;
-#   readonly attribute double matchRatio;
-#   readonly attribute double correctRatio;
+#            attribute long matchIndex;
+#            attribute double matchRatio;
+#            attribute double correctRatio;
 #   readonly attribute unsigned long lineNo;
 # };
 
@@ -157,6 +159,7 @@ class Element(Node):
     def __init__(self, elemId):
         Node.__init__(self)
         self.id = elemId
+        self._cachedContextualText = None
     def __str__(self):
         return '{ "id":"' + self.id.encode('ascii', 'xmlcharrefreplace') + '" }' #because attrs have their entites handled by the parser, and ascii output may not handle them.
 
@@ -166,6 +169,8 @@ class LinkElement(Element):
         self.index = index
         self.href = href
         self.lineNo = lineNo
+        self.resetMatchStatus()
+    def resetMatchStatus(self):
         self.status = "non-matched"
         self._matched = False #convenience for rapid testing (vs. substring ops)
         self.matchIndex = -1
@@ -174,21 +179,77 @@ class LinkElement(Element):
     def __str__(self):
         return '{' + '"index":' + str(self.index) + ',"matchIndex":' + str(self.matchIndex) + ',"matchRatio":' + str(self.matchRatio)[:5] + ',"correctRatio":' + str(self.correctRatio)[:5] + ',"lineNo":' + str(self.lineNo) + ',"status":"' + self.status + '","href":"' + self.href.encode('ascii', 'xmlcharrefreplace') + '"' + (',"id":"' + self.id + '"' if self.id != '' else '') + '}'
 
+CPU_COUNT = multiprocessing.cpu_count()
+
+class Job:
+    def __init__(self, baseDoc, baseIndex, srcDoc, suggestedStartIndex):
+        self.baseIndex = baseIndex
+        self.baseDoc = baseDoc
+        self.baseElem = baseDoc.links[baseIndex]
+        self.srcDoc = srcDoc
+        self.srcInitialIndex = suggestedStartIndex
+        self.isRunning = False #does the job need to be (re-)started?
+        self.hasResults = False
+        self.matcher = SequenceMatcher(lambda x: x in ' \t')
+        self.matcher.sequence2Text = getContextualText(self.baseElem)
+        self.matcher.set_seq2(self.matcher.sequence2Text)
+        self.matched = False # True and the following data applies:
+        self.baseStatus = "non-matched"
+        self.srcStatus = "non-matched"
+        self.bestSrcIndex = None # or an index into the srcDocument's link array
+        self.bestMatchRatio = 0.0 # the match ratio
+        self.correctRatio = 0.0
+    def replace(self, baseIndex, suggestedStartIndex):
+        self.__init__(self.baseDoc, baseIndex, self.srcDoc, suggestedStartIndex)
+
+class LocalYieldingJob(Job):
+    def __init__(self, baseDoc, baseIndex, srcDoc, suggestedStartIndex = 0):
+        Job.__init__(self, baseDoc, baseIndex, srcDoc, suggestedStartIndex)
+        self.resumeOffset = suggestedStartIndex
+    def start(self):
+        self.isRunning = True
+        checked = 0
+        while checked < SLIDING_WINDOW_SIZE and (checked == 0 or self.resumeOffset != self.srcInitialIndex):
+            srcElem = self.srcDoc.links[self.resumeOffset]
+            if check4Match(self, srcElem):
+                check4Correct(self, srcElem)
+                self.hasResults = True
+                break
+            self.resumeOffset = (self.resumeOffset + 1) % len(self.srcDoc.links) # wrap around at the length of the array.
+            checked += 1
+        if self.resumeOffset == self.srcInitialIndex:
+            if not self.matched and check4External(self.baseElem):
+                self.baseStatus = "non-matched-external"
+            self.hasResults = True # not-found results :)
+        elif checked == SLIDING_WINDOW_SIZE:
+            self.isRunning = False # yielding... running stays true for final results
+
+class BackgroundContinuousJob(Job):
+    def __init__(self, baseDoc, baseIndex, srcDoc, suggestedStartIndex = 0):
+        Job.__init__(self, baseDoc, baseIndex, srcDoc, suggestedStartIndex)
+    def start(self):
+        thread.start_new_thread(threadedRemoteJobProcessor, (self,))
+        self.isRunning = True
+
+def threadedRemoteJobProcessor(job):
+    index = job.srcInitialIndex
+    firstTime = True
+    while firstTime or index != job.srcInitialIndex:
+        srcElem = job.srcDoc.links[index]
+        if check4Match(job, srcElem):
+            check4Correct(job, srcElem)
+            break
+        index = (index + 1) % len(job.srcDoc.links) # wrap around at the length of the array.
+        firstTime = False
+    else: #not matched
+        if check4External(job.baseElem):
+            job.baseStatus = "non-matched-external"
+    job.hasResults = True
+
+jobQueue = []
+
 SLIDING_WINDOW_SIZE = 50
 SHOW_STATUS = False
-
-def searchLimited(link, linkText, otherLinkList, initialOffset, startOffsetMultiplier, otherFailureList = None, checkExternal = False):
-    startFrom = min(initialOffset + (startOffsetMultiplier * SLIDING_WINDOW_SIZE), len(otherLinkList)-1)
-    for i in xrange(startFrom, min(startFrom + SLIDING_WINDOW_SIZE, len(otherLinkList))):
-        if check4Match(link, otherLinkList[i], linkText):
-            # Caller will skip the initialOffset to the returned index... so add skipped otherLinkList items to the failure list...
-            while otherFailureList != None and initialOffset < i:
-                otherFailureList.append(otherLinkList[initialOffset])
-                initialOffset += 1
-            return i
-        elif checkExternal and check4External(otherLinkList[i]):
-            otherLinkList[i].status = 'non-matched-external'
-    return None
 
 def percentComplete(numerator, denomator):
     return "  " + str( float(numerator) / float(denomator) * 100 )[:4] + "% complete..."
@@ -201,173 +262,188 @@ def diffLinks(markupBaseline, markupSource, stats):
     baseDocument = parser.parse(markupBaseline)
     if SHOW_STATUS:
         print 'Parsing source document...'
+    stats["matchingLinksTotal"] = 0
     srcDocument = parser.parse(markupSource)
-    stats["potentialMatchingLinksSetSize"] = min(len(baseDocument.links),len(srcDocument.links))
-    if SHOW_STATUS:
-        print 'Matching links between documents...'
-    baseLinkIndex = 0
-    baseScoutIteration = 0
-    baseLinkIndexLen = len(baseDocument.links)
-    srcLinkIndex = 0
-    srcScoutIteration = 0
     srcLinkIndexLen = len(srcDocument.links)
-    baseMatches = [] # this collects matches for both sides (the source-side is reachable via the base's matchIndex value)
-    retryBaselineLinks = []
-    retrySourceLinks = []
-    repeatMissCount = 0 # When this count reaches the count of the sliding window size, then switch to "scout mode"
+    baseLinkIndexLen = len(baseDocument.links)
+    stats["potentialMatchingLinksSetSize"] = min(baseLinkIndexLen,srcLinkIndexLen)
+    if SHOW_STATUS:
+        print 'Matching links between documents' + ("..." if CPU_COUNT == 1 else (" (using " + str(CPU_COUNT) + " threads)..."))
+    nextIndex = 0
+    finishedJobs = 0
     timemarker = time.time()
-    while baseLinkIndex < baseLinkIndexLen or srcLinkIndex < srcLinkIndexLen:
-        if baseLinkIndex < baseLinkIndexLen:
-            baseLink = baseDocument.links[baseLinkIndex]
-            srcMatchIndex = searchLimited(baseLink, getContextualText(baseLink), srcDocument.links, srcLinkIndex, srcScoutIteration, retrySourceLinks)
-            if srcMatchIndex != None:
-                baseMatches.append(baseLink)
-                srcLinkIndex = srcMatchIndex + 1 #start the next iteration on the next (un-matched) link
-                srcScoutIteration = 0 # end scout mode if a result is found.
-                repeatMissCount = 0
-                baseLinkIndex += 1
-            elif srcScoutIteration == 0 or (srcLinkIndex + (srcScoutIteration * SLIDING_WINDOW_SIZE)) > srcLinkIndexLen: #no match: not scout mode, or scout mode reached the end...
-                retryBaselineLinks.append(baseLink)
-                repeatMissCount += 1
-                baseLinkIndex += 1
-                # To skip baseLinkIndex ahead here, check for srcScoutIteration > 0, and add the code.
-                srcScoutIteration = 0 # end scout mode if it was running
-            else: #scout mode AND no match found this iteration
-                srcScoutIteration += 1
-        if srcLinkIndex < srcLinkIndexLen:
-            srcLink = srcDocument.links[srcLinkIndex]
-            baseMatchIndex = searchLimited(srcLink, getContextualText(srcLink), baseDocument.links, baseLinkIndex, baseScoutIteration, retryBaselineLinks)
-            if baseMatchIndex != None:
-                baseMatches.append(baseDocument.links[baseMatchIndex])
-                baseLinkIndex = baseMatchIndex + 1
-                baseScoutIteration = 0
-                repeatMissCount = 0
-                srcLinkIndex += 1
-            elif baseScoutIteration == 0 or (baseLinkIndex + (baseScoutIteration * SLIDING_WINDOW_SIZE)) > baseLinkIndexLen:
-                retrySourceLinks.append(srcLink)
-                repeatMissCount += 1
-                srcLinkIndex += 1
-                baseScoutIteration = 0
-            else:
-                baseScoutIteration += 1
-        if repeatMissCount >= (SLIDING_WINDOW_SIZE * 2): #an entire sliding window of both sides matched nothing; switch to scout mode...
-            baseScoutIteration = 1
-            srcScoutIteration = 1
-            # backup the base and srcLinkIndex values to their previous index, because scout mode 
-            # starts at the Sliding window offset, and we don't want to skip a sliding window worth 
-            #of potential matches on the recently incremented base/src indexes...
-            repeatMissCount = 0
-            baseLinkIndex -= 1
-            srcLinkIndex -= 1
+    global jobQueue
+    jobQueue = []
+    # bootstrap the job queue
+    if baseLinkIndexLen > 0:
+        jobQueue.append(LocalYieldingJob(baseDocument, nextIndex, srcDocument))
+        nextIndex += 1
+    while len(jobQueue) < CPU_COUNT and nextIndex < baseLinkIndexLen:
+        jobQueue.append(BackgroundContinuousJob(baseDocument, nextIndex, srcDocument))
+        nextIndex += 1
+    while finishedJobs < baseLinkIndexLen: # this loop terminates after all base links are matched against all src links
+        # review job queue:
+        # * manage/update any finished jobs
+        # * create new jobs to fill any vacancies
+        # * resume any paused jobs
+        # time check and report
+        for i in xrange(0, len(jobQueue)):
+            job = jobQueue[i]
+            if job.hasResults:
+                job.hasResults = False # avoid dropping in here a second time for this job
+                # matches are 1:1 -- avoid collisions in matched results
+                actualBaseMatchIndex = srcDocument.links[job.bestSrcIndex].matchIndex
+                if job.matched and actualBaseMatchIndex != -1: # will trade one job for another, hense finishedJobs not incremented here...
+                    # while multi-threaded, it is possible two (or more) threads will find the same matching result.
+                    # This conflict is resolved by only accepting the result which would have logicaly found it
+                    # first.
+                    if actualBaseMatchIndex < job.baseIndex:
+                        # this job's result is not valid (earlier match found is accepted); restart this job
+                        job.replace(job.baseIndex, (job.bestSrcIndex + 1) % srcLinkIndexLen)
+                    else: # existing (later) match is not valid (this match is accpeted); restart the errant "later" job
+                        undoJobDetails(actualBaseMatchIndex, job, stats)
+                        transferJobDetails(job, stats)
+                        job.replace(actualBaseMatchIndex, (job.bestSrcIndex + 1) % srcLinkIndexLen)
+                else:
+                    finishedJobs += 1
+                    transferJobDetails(job, stats) # update the base and src documents with the info from the job, including stats...
+                    if nextIndex < baseLinkIndexLen:
+                        job.replace(nextIndex, nextIndex % srcLinkIndexLen) # replace it with a new job
+                        nextIndex += 1
+            elif not job.isRunning:
+                job.start()
         if SHOW_STATUS and (time.time() - timemarker) > 10: # in seconds
             timemarker = time.time()
-            print percentComplete(baseLinkIndex + srcLinkIndex, baseLinkIndexLen + srcLinkIndexLen) + "\r",
-    stats["matchingLinksTotal"] = len(baseMatches)
+            print percentComplete(finishedJobs, baseLinkIndexLen) + "\r",
+    jobQueue = None # done with it.
+    # Review any un-matched links and check for external non-matched..
     if SHOW_STATUS:
-        print 'Verifying correctness of matched links...'
-    timemarker = time.time()
-    for i in xrange(len(baseMatches)):
-        check4Correct(baseDocument, baseMatches[i], srcDocument, srcDocument.links[baseMatches[i].matchIndex], stats)
-        if SHOW_STATUS and (i % 20 == 0) and (time.time() - timemarker) > 10: # in seconds
-            timemarker = time.time()
-            print percentComplete(i, len(baseMatches)) + "\r",
-    if SHOW_STATUS:
-        print 'Last-chance matching previously non-matched links between documents...'
-    timemarker = time.time()
-    for baseUnIndex in xrange(len(retryBaselineLinks)):
-        baseUnElem = retryBaselineLinks[baseUnIndex]
-        startOffsetMultiplier = 0
-        while startOffsetMultiplier * SLIDING_WINDOW_SIZE < len(retrySourceLinks):
-            srcUnIndex = searchLimited(baseUnElem, getContextualText(baseUnElem), retrySourceLinks, 0, startOffsetMultiplier, None, True)
-            startOffsetMultiplier += 1
-            if srcUnIndex != None:
-                stats["matchingLinksTotal"] += 1
-                check4Correct(baseDocument, baseUnElem, srcDocument, retrySourceLinks[srcUnIndex], stats)
-                del retrySourceLinks[srcUnIndex] # Since we don't need to re-check this instance (it's now matched)
-            else:
-                if check4External(baseUnElem):
-                    baseUnElem.status = 'non-matched-external'
-            if SHOW_STATUS and (time.time() - timemarker) > 10:
-                print percentComplete(baseUnIndex, len(retryBaselineLinks)) + "\r",
+        print 'Finishing up...'
+    for i in xrange(srcLinkIndexLen):
+        srcElem = srcDocument.links[i]
+        if not srcElem._matched and check4External(srcElem):
+            srcElem.status = "non-matched-external"
     return (baseDocument, srcDocument)
+
+def transferJobDetails(job, stats):
+    baseElem = job.baseElem
+    baseElem.status = job.baseStatus
+    baseElem.matchIndex = job.bestSrcIndex
+    baseElem.matchRatio = job.bestMatchRatio
+    baseElem.correctRatio = job.correctRatio
+    # below MODIFIES source link element objects WHILE other threads may be reading the data!!
+    if job.matched:
+        srcElem = job.srcDoc.links[job.bestSrcIndex]
+        # NOTE: Previously the entire source link array was modified with updated "best index" and "best ratio" data.
+        #        With the new design, this would have race conditions with potentially multiple threads writing and
+        #        overwriting these values, with potential inconsistencies in the data. For now, these values will
+        #        not be included.
+        srcElem._matched = True
+        srcElem.status = job.srcStatus
+        srcElem.matchIndex = baseElem.index
+        srcElem.correctRatio = job.correctRatio
+        # End unsafe cross-threaded writes
+        stats["matchingLinksTotal"] += 1
+        if job.baseStatus == "skipped" or job.srcStatus == "skipped":
+            stats["potentialMatchingLinksSetSize"] -= 1
+        elif job.baseStatus == "correct" or job.baseStatus == "correct-external":
+            stats["correctLinksTotal"] += 1
+
+def undoJobDetails(baseRevertIndex, job, stats):
+    #This reverts the job's current base element and reverts any relevant stats. Does not change any src element details
+    toRevertElem = job.baseDoc.links[baseRevertIndex]
+    if job.matched:
+        stats["matchingLinksTotal"] -= 1
+        if toRevertElem.status == "skipped" or job.srcStatus == "skipped":
+            stats["potentialMatchingLinksSetSize"] += 1
+        if toRevertElem.status == "correct" or toRevertElem.status == "correct-external":
+            stats["correctLinksTotal"] -= 1
+    toRevertElem.resetMatchStatus()
 
 MATCH_RATIO_THRESHOLD = 0.7
 
-def check4Match(link1, link2, preComputedLink1Text = None, preComputedLink2Text = None):
-    if link1._matched or link2._matched:
+def check4Match(job, srcElem):
+    if srcElem._matched:
         return False
-    text1 = preComputedLink1Text if preComputedLink1Text != None else getContextualText(link1)
-    text2 = preComputedLink2Text if preComputedLink2Text != None else getContextualText(link2)
-    computedRatio = compareRatio(text1, text2)
-    if computedRatio > MATCH_RATIO_THRESHOLD:
-        link1.matchRatio = link2.matchRatio = computedRatio
-        link1.status = link2.status = 'matched'
-        link1._matched = link2._matched = True
-        link1.matchIndex = link2.index
-        link2.matchIndex = link1.index
+    ratio = getRatio(job.matcher, getContextualText(srcElem))
+    if ratio > MATCH_RATIO_THRESHOLD:
+        job.matched = True # True and the following data applies:
+        job.baseStatus = job.srcStatus = "matched"
+        job.bestSrcIndex = srcElem.index
+        job.bestMatchRatio = ratio # the match ratio
         return True
-    if computedRatio > link1.matchRatio:
-        link1.matchRatio = computedRatio
-        link1.matchIndex = link2.index
-    if computedRatio > link2.matchRatio:
-        link2.matchRatio = computedRatio
-        link2.matchIndex = link1.index
+    if ratio > job.bestMatchRatio:
+        job.bestMatchRatio = ratio
+        job.bestSrcIndex = srcElem.index
     return False
 
 IGNORE_LIST = {}
 
 # Only called after a pair of links has been matched. This "upgrades" the match (if possible) to an
 # additional state: skipped, correct, correct-external, broken, or the [non-upgrade] matched-external.
-def check4Correct(doc1, link1, doc2, link2, stats):
-    if link1.href in IGNORE_LIST or link2.href in IGNORE_LIST:
-        if link1.href in IGNORE_LIST:
-            link1.status = 'skipped'
-        if link2.href in IGNORE_LIST:
-            link2.status = 'skipped'
-        stats["potentialMatchingLinksSetSize"] -= 1 # skipped items are not a candidate for matching.
+def check4Correct(job, srcElem):
+    if job.baseElem.href in IGNORE_LIST or srcElem.href in IGNORE_LIST:
+        if job.baseElem.href in IGNORE_LIST:
+            job.baseStatus = "skipped"
+        if srcElem.href in IGNORE_LIST:
+            job.srcStatus = "skipped"
         return
-    if check4External(link1) or check4External(link2):
-        if check4External(link1) and check4External(link2):
-            if link1.href == link2.href:
-                link1.status = link2.status = 'correct-external'
-                link1.correctRatio = link2.correctRatio = 1.0
-                stats["correctLinksTotal"] += 1
+    isBaseHrefExternal = check4External(job.baseElem)
+    isSrcHrefExternal = check4External(srcElem)
+    if isBaseHrefExternal or isSrcHrefExternal:
+        if isBaseHrefExternal and isSrcHrefExternal:
+            if job.baseElem.href == srcElem.href:
+                job.baseStatus = job.srcStatus = "correct-external"
+                job.correctRatio = 1.0
             else:
-                link1.status = link2.status = 'matched-external'
-        elif check4External(link1):
-            link1.status = 'matched-external'
+                job.baseStatus = job.srcStatus = "matched-external"
+        elif isBaseHrefExternal:
+            job.baseStatus = "matched-external"
         else:
-            link2.status = 'matched-external'
+            job.srcStatus = "matched-external"
         return
-    link1dest = doc1.getElementById(getLinkTarget(link1.href))
-    link2dest = doc2.getElementById(getLinkTarget(link2.href))
-    if link1dest == None or link2dest == None:
-        if link1dest == None:
-            link1.status = 'broken'
-        if link2dest == None:
-            link2.status = 'broken'
+    baseDest = job.baseDoc.getElementById(getLinkTarget(job.baseElem.href))
+    srcDest = job.srcDoc.getElementById(getLinkTarget(srcElem.href))
+    if baseDest == None or srcDest == None:
+        if baseDest == None:
+            job.baseStatus = "broken"
+        if srcDest == None:
+            job.srcStatus = "broken"
         return
-    destCmpRatio = getAndCompareRatio(link1dest, link2dest)
-    link1.correctRatio = link2.correctRatio = destCmpRatio
+    destCmpRatio = getAndCompareRatio(baseDest, srcDest)
+    job.correctRatio = destCmpRatio
     if destCmpRatio > MATCH_RATIO_THRESHOLD:
-        link1.status = link2.status = 'correct'
-    stats["correctLinksTotal"] += 1
+        job.baseStatus = job.srcStatus = "correct"
 
 def getAndCompareRatio(elem1, elem2):
     text1 = getContextualText(elem1)
     text2 = getContextualText(elem2)
     return compareRatio(text1, text2)
 
-def compareRatio(text1, text2):
-    matcher = SequenceMatcher(lambda x: x in ' \t', text1, text2)
-    ratio = matcher.quick_ratio()
-    if ratio >= (MATCH_RATIO_THRESHOLD - 0.2) and ratio < (MATCH_RATIO_THRESHOLD + 0.2):
-        ratio = matcher.ratio()
+def compareRatio(baseText, srcText):
+    matcher = SequenceMatcher(lambda n: n in ' \t')
+    matcher.sequence2Text = baseText
+    matcher.set_seq2(matcher.sequence2Text)
+    return getRatio(matcher, srcText)
+
+def getRatio(preConfiguredMatcher, sequence1Text):
+    preConfiguredMatcher.set_seq1(sequence1Text) # fast(er) path, but is not commutative, so need to try both directions sometimes...
+    ratio = preConfiguredMatcher.quick_ratio() #an upper-bound on the threshold
+    if ratio >= (MATCH_RATIO_THRESHOLD - 0.25):
+        ratio = preConfiguredMatcher.ratio()
+    if ratio < MATCH_RATIO_THRESHOLD: # Try it the other way (python docs imply monotonically increasing compare, so not commutative)
+        otherMatcher = SequenceMatcher(lambda x: x in ' \t', preConfiguredMatcher.sequence2Text, sequence1Text)
+        ratioBackward = otherMatcher.quick_ratio()
+        if ratioBackward >= (MATCH_RATIO_THRESHOLD - 0.25):
+            ratioBackward = otherMatcher.ratio()
+        ratio = max(ratio, ratioBackward)
     return ratio
 
 HALF_CONTEXT_MIN = 150
 
 def getContextualText(elem):
+    if elem._cachedContextualText != None:
+        return elem._cachedContextualText
     beforeText = ''
     beforeCount = 0
     afterText = ''
@@ -378,22 +454,22 @@ def getContextualText(elem):
             beforeText = runner.textContent + beforeText
             beforeCount += len(runner.textContent)
         runner = runner.prev
-
     runner = elem
     while afterCount < HALF_CONTEXT_MIN and runner != None:
         if isinstance(runner, TextNode):
             afterText += runner.textContent
             afterCount += len(runner.textContent)
         runner = runner.next
-
-    return beforeText[-150:] + afterText[:150]
-
+    # Note: this may be called from multiple threads. The contextual text is static and doesn't
+    # mutate, so a race condition would only affect the timing of when this caching happens on the
+    # element (not the value).
+    elem._cachedContextualText = beforeText[-150:] + afterText[:150]
+    return elem._cachedContextualText
 
 def check4External(link):
     if link.href[0:1] != '#':
         return True
     return False
-
 
 def getLinkTarget(href):
     return urllib.unquote(href[1:])
@@ -492,13 +568,16 @@ that live in the Pugot So", "test6: target text extraction")
     doc2 = parser.parse("Here's some text that isn't the same<a href=foo>")
     istrue(getAndCompareRatio(doc.links[0], doc2.links[0]) > 0.95, True, "test7: getAndCompareRatio working for similar sentances")
 
-    # test 8 - check4Match(link1, link2)
-    istrue(check4Match(doc.links[0], doc2.links[0]), True, "test8: check4Match finds the two links that are similar a match!")
-    istrue(doc.links[0].status, "matched", "test8: link status updated to 'matched'")
-    istrue(doc.links[0].status, doc2.links[0].status, "test8: both status' are the same in match case")
-    istrue(doc2.links[0].matchRatio > 0.95, True, "test8: matchRatio set to the result of the match")
-    istrue(doc.links[0].matchIndex, 0, "test8: match index correct for matching link in other document")
-    istrue(check4Match(doc.links[0], doc2.links[0]), False, "test8: check4Match doesn't re-process links that have already been matched")
+    # (new) test 8 - unfortunate SequenceMatcher non-cummutative property on ratio computation...
+    textA = "Top: if you're comparing lines as sequences of characters, and don't want to synch up on blanks or hard <a href='#test'>tabs. The optional arguments a and b are sequences to be compared; both default to empty strings. The elements of both sequences must be hashable. The stuff should match."
+    textB = "Top: if you are comparing a line as sequences of characters, and don't want to synch up on blanks or hard <a href='#test'>tabs. The optional arguments a and b are sequences to be compared; both will default to empty strings. The elements of both sequences must be hashable thing. Otherwise bad."
+    matcher = SequenceMatcher(lambda x: x in ' \t', textA, textB)
+    ratioA = matcher.ratio()
+    matcher.set_seqs(textB, textA)
+    ratioB = matcher.ratio()
+    istrue(ratioA == ratioB, False, "test8: ratio computation is not commutative -- both ends must be compared.")
+    # getRatio corrects this by checking both dirctions and taking max()
+    istrue(compareRatio(textA, textB), compareRatio(textB, textA), "test8: linkdiff compensates for lack of commutative comparisons.")
 
     # test 9 - put it all together
     markup1 = "<a href=#top>Top</a>: <a href=http://test/test/test.com>if</a> you're <a href='http://external/comparing'>comparing lines</a> \
@@ -518,29 +597,29 @@ With the addition of a new stop algorithm in this document, you may now see that
     istrue(doc.links[0].matchIndex, 0, "test9: link matching validation: matched at 0")
     istrue(doc2.links[doc.links[0].matchIndex].href, "#top", "test9: correct link (0) matched in source doc")
     istrue(doc.links[0].matchRatio > 0.97, True, "test9: link matching validation: Ratio is 0.97333-ish")
-    istrue(doc.links[0].correctRatio, 0.0, "test9: link matching validation: default value for not-correct")
+    istrue(doc.links[0].correctRatio, 0.0, "test9: link matching validation: default value for correctRatio not-correct")
     istrue(doc.links[1].status, "skipped", "test9: link matching validation: link is matched & skipped")
     istrue(doc.links[1].matchIndex, 1, "test9: link matching validation: matched at 1")
     istrue(doc2.links[doc.links[1].matchIndex].href, "http://test/test/test.com", "test9: correct link (1) matched in source doc")
-    istrue(doc.links[1].matchRatio > 0.98, True, "test9: link matching validation: Ratio is 0.9806")
+    istrue(doc.links[1].matchRatio > 0.97, True, "test9: link matching validation: Ratio is 0.9741.")
     istrue(doc.links[1].correctRatio, 0.0, "test9: link matching validation: not correct--0 ratio")
     istrue(doc.links[2].status, "correct-external", "test9: link matching validation: link is correct, but external")
     istrue(doc.links[2].matchIndex, 2, "test9: link matching validation: matched at 2")
     istrue(doc2.links[doc.links[2].matchIndex].href, "http://external/comparing", "test9: correct link (2) matched in source doc")
     istrue(doc.links[2].matchRatio > 0.97, True, "test9: link matching validation: Ratio is 0.97885-ish")
     istrue(doc.links[2].correctRatio, 1.0, "test9: link matching validation: external link is 100% correct/same")
-    istrue(doc.links[3].status, "correct", "test9: link matching validation: link is correct")
+    istrue(doc.links[3].status, "correct", "test9: link matching validation: link is correct" + " got: " + doc.links[3].status + " ratio: " + str(doc.links[3].correctRatio))
     istrue(doc.links[3].matchIndex, 3, "test9: link matching validation: matched at 3")
     istrue(doc2.links[doc.links[3].matchIndex].href, "#sync", "test9: correct link (2) matched in source doc")
-    istrue(doc.links[3].matchRatio > 0.96, True, "test9: link matching validation: Ratio is approx 0.969")
-    istrue(doc.links[3].correctRatio > 0.97, True, "test9: link matching validation: Correctness matching ratio is approx 0.9725")
+    istrue(doc.links[3].matchRatio > 0.88, True, "test9: link matching validation: Ratio is approx 0.8815")
+    istrue(doc.links[3].correctRatio > 0.89, True, "test9: link matching validation: Correctness matching ratio is approx 0.894")
     istrue(doc.links[4].status, "non-matched", "test9: link matching validation: link is not matched")
-    istrue(doc.links[4].matchIndex, 5, "test9: link matching validation: failed to match--all broken links checked, index set to last index")
-    istrue(doc.links[4].matchRatio < 0.151, True, "test9: link matching validation: Match ratio is too low to match, approx 0.150")
+    istrue(doc.links[4].matchIndex, 4, "test9: link matching validation: failed to match--all broken links checked, index set to best index (4)")
+    istrue(doc.links[4].matchRatio < 0.36, True, "test9: link matching validation: Match ratio is too low to match, approx 0.359")
     istrue(doc.links[4].correctRatio, 0.0, "test9: link matching validation: un-matched correctRatio is 0.0")
     istrue(doc.links[5].status, "non-matched-external", "test9: link matching validation: link is not matched and external")
     istrue(doc.links[5].matchIndex, 4, "test9: link matching validation: matched at 4")
-    istrue(doc.links[5].matchRatio < 0.2, True, "test9: link matching validation: not matched, low ratio (0.192)")
+    istrue(doc.links[5].matchRatio < 0.47, True, "test9: link matching validation: not matched, low ratio (0.465)")
     istrue(doc.links[5].correctRatio, 0.0, "test9: link matching validation: Correctness n/a (0.0)")
     #dumpDocument(doc, True)
     #dumpDocument(doc2, True)
@@ -572,7 +651,7 @@ With the addition of a new stop algorithm in this document, you may now see that
     istrue(doc.links[1].matchIndex, 1, "test10: link matching validation: matched at 1")
     istrue(doc2.links[doc.links[1].matchIndex].href, "#matched", "test10: correct link (1) matched in source doc")
     istrue(doc.links[1].matchRatio > 0.99, True, "test10: link matching validation: Ratio is 1.0")
-    istrue(doc.links[1].correctRatio < 0.28, True, "test10: link matching validation: not correct--0.275 ratio")
+    istrue(doc.links[1].correctRatio < 0.3, True, "test10: link matching validation: not correct--0.293 ratio")
     #dumpDocument(doc, True)
 
     # test 11 - href's with percent-encoding... (one-way, works for hrefs, not for targets)
@@ -644,6 +723,18 @@ def cmdhelp():
     print "      Shows verbose status messages during processing. Useful for monitoring the progress"
     print "      of the tool."
     print ""
+    print "  -threads <value greater than 1>"
+    print ""
+    print "    Example: linkdiff -threads 1 baseline.html http://source.html"
+    print "    Example: linkdiff -threads 16 baseline.html http://source.html"
+    print ""
+    print "      The first examples disables any multi-threading. Only one thread (the main thread)"
+    print "      is used to perform the diff. May be more efficient for comparing documents with small"
+    print "      numbers of links. The second example overrides the default to use 16 threads (15 background"
+    print "      threads and the main thread) to perform the diff. Where this value exceeds the number of"
+    print "      threads available on the system, your mileage may very. The default value is detected from"
+    print "      the OS's number of available CPUs."
+    print ""
     print "  -runtests"
     print ""
     print "    Example: linkdiff -runtests"
@@ -670,6 +761,15 @@ def setRatio(newRatio):
     MATCH_RATIO_THRESHOLD = newRatio
     if SHOW_STATUS:
         print "Using custom ratio: " + str(MATCH_RATIO_THRESHOLD)
+
+def setThreads(newThreadCount):
+    global CPU_COUNT
+    if newThreadCount == None:
+        return
+    newThreadCount = max(int(newThreadCount, 10), 1)
+    CPU_COUNT = newThreadCount
+    if SHOW_STATUS:
+        print "Using custom thread count: " + str(CPU_COUNT)
 
 def toUnicode(raw):
     if raw.startswith(codecs.BOM_UTF16_LE) or raw.startswith(codecs.BOM_UTF16_BE):
@@ -752,11 +852,15 @@ def processCmdParams():
     if "-ratio" in sys.argv:
         setRatio(getFlagValue("-ratio"))
         expectedArgs += 2
+    if "-threads" in sys.argv:
+        setThreads(getFlagValue("-threads"))
+        expectedArgs += 2
     if "-ignorelist" in sys.argv:
         setIgnoreList(getFlagValue("-ignorelist"))
         expectedArgs += 2
     if len(sys.argv) < expectedArgs:
         print "Usage error: <baseline_doc.html> and <source_doc.html> parameters required."
+        return
 
     # get baseline and source text from their files...
     baseDocText = loadDocumentText(sys.argv[expectedArgs-2])
@@ -799,5 +903,3 @@ def processCmdParams():
     print "}"
 
 processCmdParams()
-
-
