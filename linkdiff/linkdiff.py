@@ -10,6 +10,8 @@ import codecs
 import json
 import urllib
 import time
+from multiprocessing import Process, Pool, Value, Manager
+import re
 import multiprocessing
 import thread
 
@@ -137,6 +139,7 @@ class Document:
         self.start = None
         self._idMap = {}
         self.droppedTags = 0
+        #self.index #added during indexing! hash of "word" <-> [0:count, 1-n:link index]
     def getElementById(self, id):
         if id in self._idMap:
             return self._idMap[id]
@@ -170,6 +173,7 @@ class LinkElement(Element):
         self.href = href
         self.lineNo = lineNo
         self.resetMatchStatus()
+        #self.words #added during indexing!
     def resetMatchStatus(self):
         self.status = "non-matched"
         self._matched = False #convenience for rapid testing (vs. substring ops)
@@ -178,7 +182,7 @@ class LinkElement(Element):
         self.correctRatio = 0.0
     def __str__(self):
         return '{' + '"index":' + str(self.index) + ',"matchIndex":' + str(self.matchIndex) + ',"matchRatio":' + str(self.matchRatio)[:5] + ',"correctRatio":' + str(self.correctRatio)[:5] + ',"lineNo":' + str(self.lineNo) + ',"status":"' + self.status + '","href":"' + self.href.encode('ascii', 'xmlcharrefreplace') + '"' + (',"id":"' + self.id + '"' if self.id != '' else '') + '}'
-
+        
 CPU_COUNT = multiprocessing.cpu_count()
 
 class Job:
@@ -254,16 +258,46 @@ SHOW_STATUS = False
 def percentComplete(numerator, denomator):
     return "  " + str( float(numerator) / float(denomator) * 100 )[:4] + "% complete..."
 
-# Returns a tuple of documents associated with the baseline, source documents.
-def diffLinks(markupBaseline, markupSource, stats):
+def parseTextToDocument(htmlText, statusText):
     parser = LinkAndTextHTMLParser()
     if SHOW_STATUS:
-        print 'Parsing baseline document...'
-    baseDocument = parser.parse(markupBaseline)
+        print statusText
+    return parser.parse(htmlText)
+
+# index is a hashtable of "name" <-> [0:count,1-n:list of matching link indexes]
+def buildIndex(doc, statusText):
     if SHOW_STATUS:
-        print 'Parsing source document...'
+        print statusText
+    doc.index = {}
+    tooCommon = []
+    #if more than 1/3 of all links have this word, then it's too common! #Consider using sqrt instead (exponential)
+    tooCommonThreshold = len(doc.links) / 3 if len(doc.links) > 2 else 1 # int division, <3 yeilds 0 for too common!
+    # slice the text in the document up into words and attach (HALF_WORD_COUNT * 2) number of words to each link
+    for linkIndex in xrange(len(doc.links)):
+        link = doc.links[linkIndex]
+        wordsList = getDirectionalContextualWords(link, True) + getDirectionalContextualWords(link, False)
+        link.words = wordsList
+        for word in wordsList:
+            if word in tooCommon:
+                continue
+            if word in doc.index:
+                doc.index[word][0] += 1 # bump the count
+                doc.index[word].append(linkIndex)
+                if doc.index[word][0] > tooCommonThreshold:
+                    tooCommon.append(word)
+                    del doc.index[word] # remove it from the index
+            else:
+                doc.index[word] = [1, linkIndex]
+    #print "Too Common: " + str(len(tooCommon)) + " -- " + str(tooCommon)
+    #print "Total unique words: " + str(len(doc.index.keys()))
+    #ave = 0
+    #for key in doc.index.keys():
+    #    ave += doc.index[key][0]
+    #print "Average occurances/word: " + str(ave/float(len(doc.index.keys())))
+
+# Returns a tuple of documents associated with the baseline, source documents.
+def diffLinks(baseDocument, srcDocument, stats):
     stats["matchingLinksTotal"] = 0
-    srcDocument = parser.parse(markupSource)
     srcLinkIndexLen = len(srcDocument.links)
     baseLinkIndexLen = len(baseDocument.links)
     stats["potentialMatchingLinksSetSize"] = min(baseLinkIndexLen,srcLinkIndexLen)
@@ -439,32 +473,68 @@ def getRatio(preConfiguredMatcher, sequence1Text):
         ratio = max(ratio, ratioBackward)
     return ratio
 
-HALF_CONTEXT_MIN = 150
+HALF_WORD_COUNT = 10
+    
+# get HALF_WORD_COUNT words (or less if only less is available) in the indicated direction
+def getDirectionalContextualWords(elem, isBeforeText):
+    textCount = HALF_CONTEXT_MIN # should be enough, but if not, grow this variable.
+    wordCount = 0
+    #since lead or tail text may cut off a word (in the middle of a whole word), ask for one more word than needed and drop the potential half-word)
+    while wordCount < HALF_WORD_COUNT + 1: # Should loop only once in typical cases...
+        text, noMoreTextAvailable = getDirectionalContextualText(elem, isBeforeText, textCount)
+        splitArray = re.split('\W+', text)
+        headPos = 0
+        tailPos = len(splitArray)
+        # discount empty matches at the beginning/end of the array (the nature of 're.split')
+        if tailPos > 0 and splitArray[0] == "":
+            headPos = 1
+        if tailPos > 1 and splitArray[-1] == "":
+            tailPos = -1
+        splitArray = splitArray[headPos:tailPos]
+        if noMoreTextAvailable and len(splitArray) < HALF_WORD_COUNT: # There just isn't any more text; Call it good enough.
+            if isBeforeText:
+                return [word.lower() for word in splitArray[1:]] #drop the leading word, which is likely cut-off.
+            else:
+                return [word.lower() for word in splitArray[:-1]] #drop the trailing word, which is likely cut-off.
+        wordCount = len(splitArray)
+        textCount += 120 # growth factor on retry
+    # word count met or exceeded HALF_WORD_COUNT threshold; trim and return
+    if isBeforeText: #use list comprehension to lowercase each word in the list.
+        return [word.lower() for word in splitArray[-HALF_WORD_COUNT:]] #back HALF_WORD_COUNT from the end, to the end.
+    else:
+        return [word.lower() for word in splitArray[:HALF_WORD_COUNT]] # 0 to HALF_WORD_COUNT (exclusive)
+    
+HALF_CONTEXT_MIN = 110 # Tuned using (W3C HTML spec text)
 
 def getContextualText(elem):
     if elem._cachedContextualText != None:
         return elem._cachedContextualText
-    beforeText = ''
-    beforeCount = 0
-    afterText = ''
-    afterCount = 0
-    runner = elem
-    while beforeCount < HALF_CONTEXT_MIN and runner != None:
-        if isinstance(runner, TextNode):
-            beforeText = runner.textContent + beforeText
-            beforeCount += len(runner.textContent)
-        runner = runner.prev
-    runner = elem
-    while afterCount < HALF_CONTEXT_MIN and runner != None:
-        if isinstance(runner, TextNode):
-            afterText += runner.textContent
-            afterCount += len(runner.textContent)
-        runner = runner.next
+    combinedTextBefore, nomore = getDirectionalContextualText(elem, True, 150)
+    combinedTextAfter, nomore = getDirectionalContextualText(elem, False, 150)
     # Note: this may be called from multiple threads. The contextual text is static and doesn't
     # mutate, so a race condition would only affect the timing of when this caching happens on the
     # element (not the value).
-    elem._cachedContextualText = beforeText[-150:] + afterText[:150]
+    elem._cachedContextualText = combinedTextBefore + combinedTextAfter
     return elem._cachedContextualText
+
+# Returns a tuple of the requested text and a flag indicating whether more text is available to process.
+def getDirectionalContextualText(elem, isBeforeText, characterLimit):
+    text = ''
+    count = 0
+    runner = elem
+    while count < characterLimit and runner != None:
+        if isinstance(runner, TextNode):
+            if isBeforeText:
+                text = runner.textContent + text
+            else: #after text
+                text += runner.textContent
+            count += len(runner.textContent)
+        runner = runner.prev if isBeforeText else runner.next
+    noMoreTextAvailable = (runner == None and count < characterLimit) # not enough characters accumulated!
+    if isBeforeText:
+        return text[-characterLimit:], noMoreTextAvailable
+    else:
+        return text[:characterLimit], noMoreTextAvailable
 
 def check4External(link):
     if link.href[0:1] != '#':
@@ -507,12 +577,12 @@ def runTests(stats):
     # test 1
     parser = LinkAndTextHTMLParser()
     doc = parser.parse("<hello/><there id ='foo' /></there></hello>");
-    istrue(doc.droppedTags, 1, "test1: expected only one dropped tag")
-    istrue(doc.start.id, 'foo', "test1: expected 1st retained element to have id 'foo'")
-    istrue(doc.start.next, None, "test1: element initialized correctly")
-    istrue(doc.getElementById('foo'), doc.start, "test1: document can search for an element by id")
-    istrue(doc.getElementById('foo2'), None, "test1: document fails to retrieve non-existant id")
-    istrue(len(doc.links), 0, "test1: no links were found")
+    assert doc.droppedTags == 1, "test1: expected only one dropped tag"
+    assert doc.start.id == 'foo', "test1: expected 1st retained element to have id 'foo'"
+    assert doc.start.next == None, "test1: element initialized correctly"
+    assert doc.getElementById('foo') == doc.start, "test1: document can search for an element by id"
+    assert doc.getElementById('foo2') == None, "test1: document fails to retrieve non-existant id"
+    assert len(doc.links) == 0, "test1: no links were found"
     #dumpDocument(doc, True)
 
     # test 2
@@ -590,7 +660,7 @@ as sequences of characters, and don't want to <a href=#sync>synch</a> up on <i>b
 The optional arguments a and b are sequences to be compared; both will <tt>default</tt> to empty strings. The elements of both sequences must be hashable--the \
 optional argument autoskip may stop the automatic skipping behavior for the <a href=#not_matched>stop algorithm</a>. \
 With the addition of a new stop algorithm in this document, you may now see that things aren't quite <a href='http://test/test/test.com'>the same</a>.."
-    doc, doc2 = diffLinks(markup1, markup2, stats)
+    doc, doc2 = diffLinks(parseTextToDocument(markup1, ""), parseTextToDocument(markup2, ""), stats)
     istrue(len(doc.links), 6, "test9: parsing validation-- 6 links in markup1")
     istrue(len(doc2.links), 6, "test9: parsing validation-- 6 links in markup2")
     istrue(doc.links[0].status, "broken", "test9: link matching validation: link is broken")
@@ -638,7 +708,7 @@ With the addition of a new stop algorithm in this document, you may now see that
     markup2 += "in the spec or other linked <a href='http://external/place2'>spec</a>. <a href=#matched>Correctness</a>, in this sense, can only be determined\n"
     markup2 += "by comparing the links to a canonical 'correct' source. In the case of the W3C HTML\n"
     markup2 += "spec, the source used for determining correctness is the WHATWG <span id=matched>version</span> of the spec."
-    doc, doc2 = diffLinks(markup1, markup2, stats)
+    doc, doc2 = diffLinks(parseTextToDocument(markup1, ""), parseTextToDocument(markup2, ""), stats)
     istrue(len(doc.links), 2, "test10: parsing validation-- 2 links in markup1")
     istrue(len(doc2.links), 2, "test10: parsing validation-- 2 links in markup2")
     istrue(doc.links[0].status, "matched-external", "test10: link matching validation: link is matched, but external (and not correct)")
@@ -657,7 +727,7 @@ With the addition of a new stop algorithm in this document, you may now see that
     # test 11 - href's with percent-encoding... (one-way, works for hrefs, not for targets)
     # note, Chrome 53 stable: tries to match link targets using both the pre-decoded text as well as the post-decoded text...Firefox/Edge do not do this, so this tool will not either.
     markup1 = '<p id="first()">first target</p><a href="#last()">goto last</a><a href="#last%28%29">alternate last</a>. This is some content. And here is some links: <a href="#first%28%29">goto first</a><p id="last%28%29">last target</p>'
-    doc, doc2 = diffLinks(markup1, markup1, stats)
+    doc, doc2 = diffLinks(parseTextToDocument(markup1, ""), parseTextToDocument(markup1, ""), stats)
     istrue(doc.links[0].href, "#last()", "test11: no fancy escaping done to these characters by the HTMLParser implementation.")
     istrue(doc.links[0].status, "broken", "test11: percent-encoded attribute values in id are not converted to match.")
     istrue(doc.links[1].href, "#last%28%29", "test11: no fancy escaping done to percent-encoded characters by the HTMLParser implementation.")
@@ -665,6 +735,38 @@ With the addition of a new stop algorithm in this document, you may now see that
     istrue(doc.links[2].status, "correct", "test11: percent-encoded attribute values in hrefs are decoded to match.")
     #dumpDocument(doc, True)
 
+    # test 12 - new indexing technique
+    markup1 =  "<span id=matched>One</span> of the common, difficult to figure-out problems in the \n"
+    markup1 += "current HTML spec is whether links are 'correct'. Not 'correct' as in syntax or as \n"
+    #                                                                                  -10      -9
+    markup1 += "opposite to broken links, but rather that the link in question goes to the semantically\n"
+    #             -8      -7  -6  -5  -4  -3   -2    -1                                     1
+    markup1 += "correct place in the Spec or other linked <a href='http://external/place1'>spec</a>. \n"
+    #                2        3   4    5     6    7   8     9      10
+    markup1 += "Correctness, in this sense, can only be determined by comparing \n"
+    markup1 += "the links to a canonical 'correct' source. In the case of the W3C HTML spec, the \n"
+    markup1 += "source used for determining correctness is the WHATWG version of the spec."
+    doc = parseTextToDocument(markup1, "")
+    #dumpDocument(doc, True)
+    # TODO: Check how often 200 characters is too little--find the right balance for perf...
+    resultWordList = getDirectionalContextualWords(doc.links[0], True)
+    assert len(resultWordList) == HALF_WORD_COUNT, "test12: getDirectionalContextualWords returns "+str(HALF_WORD_COUNT)+" items from front of link"
+    testList = ['the', 'semantically', 'correct', 'place', 'in', 'the', 'spec', 'or', 'other', 'linked']
+    for i in xrange(len(testList)): 
+        assert testList[i] == resultWordList[i], "test12: validating expected words before link"
+    resultWordList = getDirectionalContextualWords(doc.links[0], False)
+    assert len(resultWordList) == HALF_WORD_COUNT, "test12: getDirectionalContextualWords returns "+str(HALF_WORD_COUNT)+" items from back of link"
+    testList = ['spec', 'correctness', 'in', 'this', 'sense', 'can', 'only', 'be', 'determined', 'by']
+    for i in xrange(len(testList)): 
+        assert testList[i] == resultWordList[i], "test12: validating expected words after link"
+    buildIndex(doc, "")
+    assert len(doc.index.keys()) == 14, "test12: total number of unique words indexed is 14 (others were in the too common list"
+    testList = ['correct', 'be', 'linked', 'correctness', 'by', 'this', 'only', 'other', 'place', 'can', 'sense', 'semantically', 'determined', 'or']
+    for word in doc.index.keys():
+        assert word in testList, "test12: only expected words are in the index"
+        assert doc.index[word][0] == 1, "test12: indexed words all have an initial occurance count of 1"
+        assert doc.index[word][1] == 0, "test12: words are all found in first link"
+        del testList[testList.index(word)]
     print 'All tests passed'
     SHOW_STATUS = oldShowStatus
 
@@ -742,6 +844,39 @@ def cmdhelp():
     print "      When this flag is used, the <baseline html file> and <source html file> input values"
     print "      are not required. This flag runs the self-tests to ensure the code is working as expected"
     print ""
+
+def dumpJSONResults(baseDoc, srcDoc, stats, showAllStats):
+    if SHOW_STATUS:
+        print "JSON output:"
+        print ""
+    print "{"
+    print '  "ratioThreshold": ' + str(stats["ratioThreshold"]) + ","
+    print '  "matchingLinksTotal": ' + str(stats["matchingLinksTotal"]) + ","
+    print '  "correctLinksTotal": ' + str(stats["correctLinksTotal"]) + ","
+    print '  "potentialMatchingLinksSetSize": ' + str(stats["potentialMatchingLinksSetSize"]) + ","
+    print '  "percentMatched": ' + str(float(stats["matchingLinksTotal"]) / float(stats["potentialMatchingLinksSetSize"]))[:5] + ","
+    print '  "percentCorrect": ' + str(float(stats["correctLinksTotal"]) / float(stats["potentialMatchingLinksSetSize"]))[:5] + ","
+    print '  "baselineDoc": {'
+    baseLinkTotal = len(baseDoc.links)
+    print '    "linksTotal": ' + str(baseLinkTotal) + ","
+    print '    "nonMatchedTotal": ' + str(baseLinkTotal - stats["matchingLinksTotal"]) + ("," if showAllStats else "")
+    if showAllStats:
+        print '    "linkIndex": [ '
+        for link in baseDoc.links:
+            print '      ' + str(link) + ("," if link.index < (baseLinkTotal-1) else "")
+        print '    ]'
+    print '  },'
+    print '  "sourceDoc": {'
+    srcLinkTotal = len(srcDoc.links)
+    print '    "linksTotal": ' + str(srcLinkTotal) + ","
+    print '    "nonMatchedTotal": ' + str(srcLinkTotal - stats["matchingLinksTotal"]) + ("," if showAllStats else "")
+    if showAllStats:
+        print '    "linkIndex": [ '
+        for link in srcDoc.links:
+            print '      ' + str(link) + ("," if link.index < (srcLinkTotal-1) else "")
+        print '    ]'
+    print '  }'
+    print "}"
 
 # Test for existance before calling...may return None as failure mode
 def getFlagValue(flag):
@@ -833,6 +968,27 @@ def loadDocumentText(urlOrPath):
     else: #assume file path...
         return getTextFromLocalFile(urlOrPath) # may return None
 
+def baseLineProcessEntryPoint(fileToLoad, globalState):
+    # Set the "globals" for this process
+    global SHOW_STATUS
+    global MATCH_RATIO_THRESHOLD
+    global IGNORE_LIST
+    global CPU_COUNT
+    SHOW_STATUS = globalState.showStatus
+    MATCH_RATIO_THRESHOLD = globalState.matchRatioThreshold
+    IGNORE_LIST = globalState.ignoreList
+    CPU_COUNT = globalState.cpuCount
+    # Load the document...
+    baseDocText = loadDocumentText(fileToLoad)
+    if baseDocText == None:
+        globalState.baselineManagerError = True
+        return
+    # Parse the baseline document...
+    baselineDoc = parseTextToDocument(baseDocText, 'Parsing baseline document...')
+    buildIndex(sourceDoc, 'Indexing baseline document...')
+    
+    return
+        
 def processCmdParams():
     stats = {}
     stats["ratioThreshold"] = MATCH_RATIO_THRESHOLD
@@ -862,44 +1018,34 @@ def processCmdParams():
         print "Usage error: <baseline_doc.html> and <source_doc.html> parameters required."
         return
 
-    # get baseline and source text from their files...
-    baseDocText = loadDocumentText(sys.argv[expectedArgs-2])
-    if baseDocText == None:
-        return
+    processManager = Manager()
+    globalSharedState = processManager.Namespace()
+    globalSharedState.baselineManagerError = False
+    globalSharedState.showStatus = SHOW_STATUS
+    globalSharedState.matchRatioThreshold = MATCH_RATIO_THRESHOLD
+    globalSharedState.ignoreList = IGNORE_LIST
+    globalSharedState.cpuCount = CPU_COUNT
+    
+    # Load and process baseline file in a separate Process
+    p = Process(target=baseLineProcessEntryPoint, args=(sys.argv[expectedArgs-2], globalSharedState), name="linkdiff_baseline_processor")
+    p.start()
+    # Load sourceDoc (in this process)
     sourceDocText = loadDocumentText(sys.argv[expectedArgs-1])
-    if sourceDocText == None:
+    if sourceDocText == None or globalSharedState.baselineManagerError:
         return
-    baseDoc, sourceDoc = diffLinks(baseDocText, sourceDocText, stats)
-    if SHOW_STATUS:
-        print "JSON output:"
-        print ""
-    print "{"
-    print '  "ratioThreshold": ' + str(stats["ratioThreshold"]) + ","
-    print '  "matchingLinksTotal": ' + str(stats["matchingLinksTotal"]) + ","
-    print '  "correctLinksTotal": ' + str(stats["correctLinksTotal"]) + ","
-    print '  "potentialMatchingLinksSetSize": ' + str(stats["potentialMatchingLinksSetSize"]) + ","
-    print '  "percentMatched": ' + str(float(stats["matchingLinksTotal"]) / float(stats["potentialMatchingLinksSetSize"]))[:5] + ","
-    print '  "percentCorrect": ' + str(float(stats["correctLinksTotal"]) / float(stats["potentialMatchingLinksSetSize"]))[:5] + ","
-    print '  "baselineDoc": {'
-    baseLinkTotal = len(baseDoc.links)
-    print '    "linksTotal": ' + str(baseLinkTotal) + ","
-    print '    "nonMatchedTotal": ' + str(baseLinkTotal - stats["matchingLinksTotal"]) + ("," if showAllStats else "")
-    if showAllStats:
-        print '    "linkIndex": [ '
-        for link in baseDoc.links:
-            print '      ' + str(link) + ("," if link.index < (baseLinkTotal-1) else "")
-        print '    ]'
-    print '  },'
-    print '  "sourceDoc": {'
-    srcLinkTotal = len(sourceDoc.links)
-    print '    "linksTotal": ' + str(srcLinkTotal) + ","
-    print '    "nonMatchedTotal": ' + str(srcLinkTotal - stats["matchingLinksTotal"]) + ("," if showAllStats else "")
-    if showAllStats:
-        print '    "linkIndex": [ '
-        for link in sourceDoc.links:
-            print '      ' + str(link) + ("," if link.index < (srcLinkTotal-1) else "")
-        print '    ]'
-    print '  }'
-    print "}"
+    sourceDoc = parseTextToDocument(sourceDocText, 'Parsing source document...')
+    s_time = time.time()
+    buildIndex(sourceDoc, 'Indexing source document...')
+    print str(time.time() - s_time) + ' seconds elapsed for indexing...'
+    # Sync point
+    p.join()
+    if globalSharedState.baselineManagerError:
+        return
+    print "success!"
+    
+    #baseDoc, sourceDoc = diffLinks(baseDocText, sourceDocText, stats)
+    #dumpJSONResults(baseDoc, sourceDoc, stats, showAllStats)
 
-processCmdParams()
+# Only the main process should execute this (spawned processes will skip it)
+if __name__ == '__main__':
+    processCmdParams()
