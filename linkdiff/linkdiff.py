@@ -233,12 +233,13 @@ def buildIndex(doc, statusText):
 
 # Process entry point
 # For a given list of words, find the matching (set of) index(es) in the provided index.
-# Returns an array of candidates that meet the ratioThreshold bar (>=). Consisting of 
+# Returns an array of candidates that meet the MATCH_RATIO_THRESHOLD bar (>=). Consisting of 
 # tuples (ratio, associatedIndex, associatedIndex) in preferential order from most preferred (index 0) to 
 # least preferred.
 def StartBuildMatchResult(tuple):
     localStartTime = time.time()
-    wordList, otherIndex, otherNonIndexed, otherLinksLen, globalStartTime, wordListOriginIndex, ratioThreshold, renderProgress, mem = tuple
+    wordList, otherIndex, otherNonIndexed, otherLinksLen, wordListOriginIndex, renderProgress, mem = tuple
+    setGlobals(mem)
     possibleMatches = len(wordList)
     allLinks = [0] * otherLinksLen
     for word in wordList: # typically 20 such words...
@@ -252,7 +253,7 @@ def StartBuildMatchResult(tuple):
                 allLinks[linkIndexArray[i]] += 1 # matching link incremented!
     if possibleMatches == 0:
         return [(0.0, -1, -1)]
-    matchValueThreshold = int(math.ceil(possibleMatches * ratioThreshold))
+    matchValueThreshold = int(math.ceil(possibleMatches * MATCH_RATIO_THRESHOLD))
     possibleMatches = float(possibleMatches) # convert to float so that later division is floating point
     highestMatchValueFound = 0
     bestMatchingIndex = -1
@@ -272,17 +273,21 @@ def StartBuildMatchResult(tuple):
         candidates.append((highestMatchValueFound/possibleMatches, bestMatchingIndex, -1))
     # candidates.sort(key=itemgetter(0),reverse=True) # sorts based on 0th item in each tuple (biggest value first)
     if renderProgress:
-        progress = mem.matchingProgress
+        progress = mem.progress
         progress += 1
-        mem.matchingProgress = progress # potentially racy... might loose progress if multiple processes read/write the value overlapping
-        print "matching... " + str(progress) + "% in " + str(int(time.time() - globalStartTime)) + " seconds\r",
+        mem.progress = progress # potentially racy... might loose progress if multiple processes read/write the value while overlapping
+        statusUpdateInline("matching... " + str(progress) + "%")
     # Return the list of tuples (ratio, bestMatchingIndex)
     return candidates
 
-def resolveMatchResultConflicts(matchResultsArray):
+def resolveMatchResultConflicts(matchResultsArray, p, mem):
     rowResults = {}
     colResults = {}
-    for i in xrange(len(matchResultsArray)):
+    statusUpdate('\nPreparing to resolve matches...')
+    matchResultsArrayLen = len(matchResultsArray)
+    onePercent = matchResultsArrayLen / 100 if matchResultsArrayLen > 1000 else matchResultsArrayLen + 1
+    counter = 0
+    for i in xrange(matchResultsArrayLen):
         if matchResultsArray[i][0][2] == -1:
             matchResultsArray[i] = matchResultsArray[i][0]
         else:
@@ -291,6 +296,9 @@ def resolveMatchResultConflicts(matchResultsArray):
                 if matchTuple[1] not in colResults:
                     colResults[matchTuple[1]] = []
                 colResults[matchTuple[1]].append(matchTuple)
+        if i % onePercent + 1 == onePercent:
+            counter += 1
+            statusUpdateInline("preparing... " + str(counter) + "%")
 
     restartMatching = True
     while restartMatching:
@@ -665,6 +673,7 @@ def getContextualText(elem):
 
 def runTests(mem):
     mem.ignoreList = {'http://test/test/test.com': True}
+    mem.progress = 0
     setGlobals(mem)
     
     # test 1
@@ -756,7 +765,9 @@ def runTests(mem):
         [(0.75, 4, 7),(0.7, 6, 7),  (0.75, 8, 7)],              #7
         [(0.75, 2, 8)]                                          #8
     ]
-    resolveMatchResultConflicts(array)
+    p = Pool(1)
+    resolveMatchResultConflicts(array, p, mem)
+    p.close()
     assert array[0][0] == 0.75, 'test8: index 0 matches ratio'
     assert array[0][1] == 1, 'test8: index 0 matches other'
     assert array[0][2] == 0, 'test8: index 0 matches index'
@@ -1035,16 +1046,15 @@ def StartBaselineProcessorWithMarkupText(text, mem, comm):
     srcIndex = mem.srcIndex
     srcNonIndexed = mem.srcUnIndexed
     srcLinksLen = mem.srcLinksLen
-    mem.matchingProgress = 0
-    s_time = time.time()
+    mem.progress = 0
     p = Pool(CPU_COUNT)
     inputParamsArray = []
     onePercent = len(baselineDoc.links) / 100 if len(baselineDoc.links) > 1000 else len(baselineDoc.links) + 1
     for ownIndex in xrange(len(baselineDoc.links)):
-        inputParamsArray.append((baselineDoc.links[ownIndex].words, srcIndex, srcNonIndexed, srcLinksLen, s_time, ownIndex, MATCH_RATIO_THRESHOLD, ownIndex % onePercent + 1 == onePercent, mem))
+        inputParamsArray.append((baselineDoc.links[ownIndex].words, srcIndex, srcNonIndexed, srcLinksLen, ownIndex, ownIndex % onePercent + 1 == onePercent, mem))
     baselineMatches = p.map(StartBuildMatchResult, inputParamsArray)
-    statusUpdate('Resolving match conflicts...')
-    resolveMatchResultConflicts(baselineMatches)
+    resolveMatchResultConflicts(baselineMatches, p, mem)
+    p.close()
     mem.baselineMatches = baselineMatches
     mem.ownLinksLen = len(baselineDoc.links)
     comm.send('apply:baseline matches')
@@ -1211,6 +1221,9 @@ def statusUpdate(text):
     if SHOW_STATUS:
         print text
 
+def statusUpdateInline(text):
+    if SHOW_STATUS:
+        print text + "\r",
 
 def loadDocumentText(urlOrPath):
     if urlOrPath[0:1] == '"':
