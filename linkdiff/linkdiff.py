@@ -3,19 +3,17 @@
 # 2016/10/05
 
 from HTMLParser import HTMLParser
-from difflib import SequenceMatcher
 import sys
 import os.path
 import codecs
 import json
 import urllib
-import time
+#import time
 import math
 from multiprocessing import Process, Pipe, Pool, Manager
 import re
 import multiprocessing
-import thread
-from operator import itemgetter
+#from operator import itemgetter
 
 # Subclass the parser to build the DOM described below. Since the
 # DOM will only be used for tracking links and what they link to, the
@@ -28,7 +26,6 @@ from operator import itemgetter
 # order for comparison.
 class LinkAndTextHTMLParser(HTMLParser):
     """Parses links and text from HTML"""
-
     def handle_starttag(self, tag, attrs):
         attrNames = [attr[0] for attr in attrs]
         if tag == "a" and "href" in attrNames:
@@ -143,15 +140,14 @@ class Document:
         self.droppedTags = 0
         #self.index #added during indexing! hash of "word" <-> [0:count, 1-n:link index]
         #self.unIndexed #added during indexing! list of "words" too common to be useful in indexing.
+
     def getElementById(self, id):
         if id in self._idMap:
             return self._idMap[id]
         else:
             return None
 
-
 class Node():
-
     def __init__(self):
         self.prev = None
         self.next = None
@@ -185,15 +181,7 @@ class LinkElement(Element):
     def __str__(self):
         return '{"index":' + str(self.index) + ',"matchIndex":' + str(self.matchIndex) + ',"matchRatio":' + str(self.matchRatio)[:5] + ',"correctRatio":' + str(self.correctRatio)[:5] + ',"lineNo":' + str(self.lineNo) + ',"status":"' + self.status + '","href":"' + self.href.encode('ascii', 'xmlcharrefreplace') + '"' + (',"id":"' + self.id + '"' if self.id != '' else '') + '}'
     def __dict__(self):
-        return {'index': self.index,
-         'matchIndex': self.matchIndex,
-         'matchRatio': self.matchRatio,
-         'correctRatio': self.correctRatio,
-         'lineNo': self.lineNo,
-         'status': self.status,
-         'href': self.href,
-         'id': self.id}
-
+        return {'index': self.index, 'matchIndex': self.matchIndex, 'matchRatio': self.matchRatio, 'correctRatio': self.correctRatio, 'lineNo': self.lineNo, 'status': self.status, 'href': self.href, 'id': self.id}
 
 def parseTextToDocument(htmlText, statusText):
     parser = LinkAndTextHTMLParser()
@@ -204,7 +192,7 @@ def parseTextToDocument(htmlText, statusText):
 def buildIndex(doc, statusText):
     statusUpdate(statusText)
     doc.index = {}
-    doc.unIndexed = [] # because they're too common to be useful...    
+    doc.unIndexed = [] # because they're too common to be useful...
     tooCommonThreshold = len(doc.links)
     if len(doc.links) > 100:
         tooCommonThreshold = tooCommonThreshold / 3 #if more than 1/3 of all links have this word, then it's too common!
@@ -233,11 +221,10 @@ def buildIndex(doc, statusText):
 
 # Process entry point
 # For a given list of words, find the matching (set of) index(es) in the provided index.
-# Returns an array of candidates that meet the MATCH_RATIO_THRESHOLD bar (>=). Consisting of 
-# tuples (ratio, associatedIndex, associatedIndex) in preferential order from most preferred (index 0) to 
+# Returns an array of candidates that meet the MATCH_RATIO_THRESHOLD bar (>=). Consisting of
+# tuples (ratio, associatedIndex, associatedIndex) in preferential order from most preferred (index 0) to
 # least preferred.
 def StartBuildMatchResult(tuple):
-    localStartTime = time.time()
     wordList, otherIndex, otherNonIndexed, otherLinksLen, wordListOriginIndex, renderProgress, mem = tuple
     setGlobals(mem)
     possibleMatches = len(wordList)
@@ -264,7 +251,7 @@ def StartBuildMatchResult(tuple):
         if not candidacyAchieved and numMatchesOfI > highestMatchValueFound:
             highestMatchValueFound = numMatchesOfI
             bestMatchingIndex = i
-            if numMatchesOfI >= matchValueThreshold: 
+            if numMatchesOfI >= matchValueThreshold:
                 candidates.append((numMatchesOfI/possibleMatches, i, wordListOriginIndex))
                 candidacyAchieved = True
         elif candidacyAchieved and numMatchesOfI >= matchValueThreshold:
@@ -285,8 +272,8 @@ def resolveMatchResultConflicts(matchResultsArray, p, mem):
     colResults = {}
     statusUpdate('\nPreparing to resolve matches...')
     matchResultsArrayLen = len(matchResultsArray)
-    onePercent = matchResultsArrayLen / 100 if matchResultsArrayLen > 1000 else matchResultsArrayLen + 1
-    counter = 0
+    tenPercent = matchResultsArrayLen / 10 if matchResultsArrayLen > 1000 else matchResultsArrayLen + 1
+    percent = 0
     for i in xrange(matchResultsArrayLen):
         if matchResultsArray[i][0][2] == -1:
             matchResultsArray[i] = matchResultsArray[i][0]
@@ -296,22 +283,24 @@ def resolveMatchResultConflicts(matchResultsArray, p, mem):
                 if matchTuple[1] not in colResults:
                     colResults[matchTuple[1]] = []
                 colResults[matchTuple[1]].append(matchTuple)
-        if i % onePercent + 1 == onePercent:
-            counter += 1
-            statusUpdateInline("preparing... " + str(counter) + "%")
+        if i % tenPercent + 1 == tenPercent:
+            percent += 10
+            statusUpdateInline("preparing... " + str(percent) + "%")
+    statusUpdate('\nResolving match conflicts...')
+    onePercent = matchResultsArrayLen / 100 if matchResultsArrayLen > 1000 else matchResultsArrayLen + 1
+    i = 0
+    percent = 0
+    while i < matchResultsArrayLen:
+        if resolveMatchRow(i, rowResults, colResults, matchResultsArray):
+            i += 1
+            if i % onePercent + 1 == onePercent:
+                percent += 1
+                statusUpdateInline("resolving... " + str(percent) + "%")
 
-    restartMatching = True
-    while restartMatching:
-        restartMatching = False
-        keySet = rowResults.keys()
-        for keyIndex in keySet:
-            if resolveMatchRow(keyIndex, rowResults, colResults, matchResultsArray):
-                restartMatching = True
-                break
-
-
+# Returns true if the designted row was resolved; false if some other row was resolved.
 def resolveMatchRow(rowIndex, rowDict, colDict, finalMatchArray):
-    assert rowIndex in rowDict, 'All potential matches for baseline index: ' + str(rowIndex) + ' were eliminated!'
+    if not rowIndex in rowDict:
+        return True # Resolved in a previous iteration.
     rowLen = len(rowDict[rowIndex])
     assert rowLen != 0, 'If there is a row, it must have more than zero elements...'
     colConstrained = False
@@ -325,20 +314,18 @@ def resolveMatchRow(rowIndex, rowDict, colDict, finalMatchArray):
                 break
         else:
             colConstrained = True
-
     for tuple in rowDict[rowIndex]:
         assert len(colDict[tuple[1]]) > 0, "I don't think this array should ever be empty, if I do maintenance right"
         if len(colDict[tuple[1]]) > 1:
             break
     else:
         rowConstrained = True
-
     if not rowConstrained and not colConstrained:
         return resolveNonConstrainedMatches(rowIndex, rowDict, colDict, finalMatchArray)
     elif rowConstrained and colConstrained:
         finalMatchArray[rowIndex] = rowDict[rowIndex][0]
         del rowDict[rowIndex]
-        return False
+        return True
     elif rowConstrained:
         biggestRatio = rowDict[rowIndex][0][0]
         biggestIndex = 0
@@ -349,7 +336,7 @@ def resolveMatchRow(rowIndex, rowDict, colDict, finalMatchArray):
 
         finalMatchArray[rowIndex] = rowDict[rowIndex][biggestIndex]
         del rowDict[rowIndex]
-        return False
+        return True
     else:
         colIndex = rowDict[rowIndex][0][1]
         biggestRatio = colDict[colIndex][0][0]
@@ -364,9 +351,7 @@ def resolveMatchRow(rowIndex, rowDict, colDict, finalMatchArray):
             rovingRowIndex = rovingColumnTuple[2]
             finalMatchArray[rovingRowIndex] = (rovingColumnTuple[0], rovingColumnTuple[1], rovingColumnTuple[2] if i == biggestIndex else -1)
             del rowDict[rovingRowIndex]
-
-        return rowIndex != biggestIndex
-
+        return rowIndex == biggestIndex
 
 def resolveNonConstrainedMatches(anchorRowIndex, rowDict, colDict, finalMatchArray):
     highestRatio = -0.1
@@ -397,28 +382,24 @@ def resolveNonConstrainedMatches(anchorRowIndex, rowDict, colDict, finalMatchArr
                         highestColDict[colIndex] = []
                     highestRowDict[localRowIndex].append(tuple)
                     highestColDict[colIndex].append(tuple)
-
     rowKeys = highestRowDict.keys()
     colKeys = highestColDict.keys()
     if len(rowKeys) == 1 and len(colKeys) == 1:
         selectAndRemoveFromNonConstrainedMatches(rowKeys[0], colKeys[0], rowDict, colDict, finalMatchArray)
-        return anchorRowIndex != rowKeys[0]
+        return anchorRowIndex == rowKeys[0]
     for rIndex in rowKeys:
         if len(highestRowDict[rIndex]) == 1:
             selectAndRemoveFromNonConstrainedMatches(rIndex, highestRowDict[rIndex][0][1], rowDict, colDict, finalMatchArray)
-            return anchorRowIndex != rIndex
-
+            return anchorRowIndex == rIndex
     for cIndex in colKeys:
         if len(highestColDict[cIndex]) == 1:
             rIndex = highestColDict[cIndex][0][2]
             selectAndRemoveFromNonConstrainedMatches(rIndex, cIndex, rowDict, colDict, finalMatchArray)
-            return anchorRowIndex != rIndex
-
+            return anchorRowIndex == rIndex
     tuple = highestRowDict[rowKeys[0]][0]
     rIndex = tuple[2]
     selectAndRemoveFromNonConstrainedMatches(rIndex, tuple[1], rowDict, colDict, finalMatchArray)
-    return anchorRowIndex != rIndex
-
+    return anchorRowIndex == rIndex
 
 def selectAndRemoveFromNonConstrainedMatches(rowIndex, colIndex, rowDict, colDict, finalMatchArray):
     selectedRow = rowDict[rowIndex]
@@ -432,7 +413,6 @@ def selectAndRemoveFromNonConstrainedMatches(rowIndex, colIndex, rowDict, colDic
                 if tuple == col[i]:
                     del col[i]
                     break
-
     for tuple in selectedCol:
         if tuple[2] != rowIndex:
             row = rowDict[tuple[2]]
@@ -444,9 +424,7 @@ def selectAndRemoveFromNonConstrainedMatches(rowIndex, colIndex, rowDict, colDic
                     else:
                         del row[i]
                     break
-
     del rowDict[rowIndex]
-
 
 def applyOwnMatchArray(ownMatchResultsArray, ownLinks):
     assert len(ownMatchResultsArray) == len(ownLinks), 'Baseline and matched lists must have the same length'
@@ -460,7 +438,6 @@ def applyOwnMatchArray(ownMatchResultsArray, ownLinks):
             link.status = 'matched'
             matchesCount += 1
     return matchesCount
-
 
 def applyOtherMatchArray(otherMatchResultsArray, ownLinks):
     matchesCount = 0
@@ -532,7 +509,7 @@ def check4Correct(doc, otherExternal, otherWords):
         ownWords = link.words
         wordsToOwnWordsRatio = getRatio(words, ownWords)
         # If the lengths of the two lists are the same, then the same ratio of matches is interchangable
-        # e.g., for two lists with 4 items, if only 2 items match from one list to the other, more than 
+        # e.g., for two lists with 4 items, if only 2 items match from one list to the other, more than
         # 2 items cannot match if the lists were interchanged. This is not true when the lists have different
         # lenghts, as the matching ratios can be different...
         if len(words) == len(ownWords):
@@ -549,7 +526,6 @@ def check4Correct(doc, otherExternal, otherWords):
             correctWords.append((link.matchIndex, wordsToOwnWordsRatio))
     return (totalOwnCorrect, correctExternals, correctWords)
 
-
 def getRatio(ownWords, otherWords):
     otherWordsNoDup = [ {'word': w, 'notused': True} for w in otherWords ]
     found = 0
@@ -562,19 +538,15 @@ def getRatio(ownWords, otherWords):
 
     return found / float(len(ownWords))
 
-
 def applyCorrectnessResults(doc, externalCorrectList, wordCorrectList):
     for i in externalCorrectList:
         doc.links[i].status = 'correct-external'
         doc.links[i].correctRatio = 1.0
-
     for tuple in wordCorrectList:
         link = doc.links[tuple[0]]
         link.status = 'correct'
         link.correctRatio = tuple[1]
-
     return len(externalCorrectList) + len(wordCorrectList)
-
 
 HALF_WORD_COUNT = 10
 HALF_CONTEXT_MIN = 110 # Tuned using (W3C HTML spec text)
@@ -607,8 +579,6 @@ def getDirectionalContextualWords(elem, isBeforeText):
         return [word.lower() for word in splitArray[-HALF_WORD_COUNT:]] #back HALF_WORD_COUNT from the end, to the end.
     else:
         return [word.lower() for word in splitArray[:HALF_WORD_COUNT]] # 0 to HALF_WORD_COUNT (exclusive)
-    
-
 
 # Returns a tuple of the requested text and a flag indicating whether more text is available to process.
 def getDirectionalContextualText(elem, isBeforeText, characterLimit):
@@ -628,7 +598,6 @@ def getDirectionalContextualText(elem, isBeforeText, characterLimit):
         return (text[-characterLimit:], noMoreTextAvailable)
     else:
         return (text[:characterLimit], noMoreTextAvailable)
-
 
 def check4External(link):
     if link.href[0:1] != '#':
@@ -658,24 +627,21 @@ def dumpDocument(doc, enumAll=False):
         head = head.next
         counter += 1
     print "total nodes in document: " + str(counter)
-    
+
 def getAndCompareRatio(elem1, elem2):
     list1 = getDirectionalContextualWords(elem1, True) + getDirectionalContextualWords(elem1, False)
     list2 = getDirectionalContextualWords(elem2, True) + getDirectionalContextualWords(elem2, False)
     return getRatio(list1, list2)
-
 
 def getContextualText(elem):
     combinedTextBefore, nomore = getDirectionalContextualText(elem, True, 150)
     combinedTextAfter, nomore = getDirectionalContextualText(elem, False, 150)
     return combinedTextBefore + combinedTextAfter
 
-
 def runTests(mem):
     mem.ignoreList = {'http://test/test/test.com': True}
     mem.progress = 0
     setGlobals(mem)
-    
     # test 1
     parser = LinkAndTextHTMLParser()
     doc = parser.parse("<hello/><there id ='foo' /></there></hello>");
@@ -725,7 +691,7 @@ def runTests(mem):
     doc = parser.parse("The <b>freeway</b> can get quite backed-up; that's why I enjoy riding the <div id=target>Connector</div>. It saves me \nlots of time on my commute. Microsoft <i>is quite awesome</i> to provide such a service to their <span class=employee><a>employees</a></span> \nthat live in the <span>Pugot Sound</span> area. Of course, I could get to work a lot faster by driving my car,\nbut then I wouldn't be able to write tests while on the <a href=#target>bus</a>.")
     assert getContextualText(doc.links[0]) == " live in the Pugot Sound area. Of course, I could get to work a lot faster by driving my car,\nbut then I wouldn't be able to write tests while on the bus.", 'test6: text extraction working correctly'
     assert getContextualText(doc.getElementById('target')) == "The freeway can get quite backed-up; that's why I enjoy riding the Connector. It saves me \nlots of time on my commute. Microsoft is quite awesome to provide such a service to their employees \nthat live in the Pugot So", 'test6: target text extraction'
-    
+
     # test 7 - getAndCompareRatio
     doc = parser.parse("Here's some text that is the same<a href=hi>")
     doc2 = parser.parse("And this sentance won't match up anywhere<a href=bar>")
@@ -733,9 +699,9 @@ def runTests(mem):
     assert getAndCompareRatio(doc.links[0], doc2.links[0]) < 0.09, 'test7: getAndCompareRatio working for non-similar sentances'
     doc2 = parser.parse("Here's some text that isn't the same<a href=foo>")
     assert getAndCompareRatio(doc.links[0], doc2.links[0]) > 0.85, 'test7: getAndCompareRatio working for similar sentances'
-    
+
     # test 8 - (new) Validate the complexities of the match resolver
-    #     0 1 2 3 4 5 6 7 8 
+    #     0 1 2 3 4 5 6 7 8
     #   +-------------------
     # 0 | a A
     # 1 |     b
@@ -746,14 +712,14 @@ def runTests(mem):
     # 6 |           d D d              ()
     # 7 |         d,  d   d,       d,      d,                  ()
     # 8 |     B
-    
+
     # A - Row constrained
     # B - Col constrained
     # C - Row + Col constrained
     # D - Unconstrained: pick best match
     # d,- Unconstrained: pick option which is only result in row or column
     # d - Unconstrained: pick top-left option
-    
+
     array = [
         [(0.7, 0, 0), (0.75, 1, 0)],                            #0
         [(0.7, 2, 1)],                                          #1
@@ -795,7 +761,7 @@ def runTests(mem):
     assert array[4][0] == 0.75, 'test8: index 4 matches ratio'
     assert array[4][1] == 5, 'test8: index 4 matches other'
     assert array[4][2] == 4, 'test8: index 4 matches index'
-    
+
     # test 9 - put it all together
     markup1 = "This is the beginning link: <a href=#top>Top</a>: when in doubt, use this test <a href=http://test/test/test.com>if</a> you are <a href='http://external/comparing'>comparing lines</a> as sequences of characters, and don't want to <a href=#sync>synch</a> up on blanks or hard <span id='sync'>tabs</span>. The optional arguments a and b are sequences to be compared; both <tt>default</tt> to empty strings. The elements of both sequences must be hashable. The optional argument autojunk can be used to disable the automatic <a href=#not_matched>junk heuristic</a>. New in version 2.7.1: The <a href='http://test/test/test.com'>autojunk</a> parameter.."
     markup2 = "This is the beginning link: <a href=#top>Top</a>: when in doubt, use this test <a href=http://test/test/test.com>if</a> you are <a href='http://external/comparing'>comparing a line</a> as sequences of characters, and don't want to <a href=#sync>synch</a> up on <i>blanks</i> or <b>hard <span id='sync'>tabs</span></b>. The optional arguments a and b are sequences to be compared; both will <tt>default</tt> to empty strings. The elements of both sequences must be hashable--the optional argument autoskip may stop the automatic skipping behavior for the <a href=#not_matched>stop algorithm</a>. With the addition of a new stop algorithm in this document, you may now see that things aren't quite <a href='http://test/test/test.com'>the same</a>.."
@@ -891,12 +857,12 @@ def runTests(mem):
     resultWordList = getDirectionalContextualWords(doc.links[0], True)
     assert len(resultWordList) == HALF_WORD_COUNT, "test12: getDirectionalContextualWords returns "+str(HALF_WORD_COUNT)+" items from front of link"
     testList = ['the', 'semantically', 'correct', 'place', 'in', 'the', 'spec', 'or', 'other', 'linked']
-    for i in xrange(len(testList)): 
+    for i in xrange(len(testList)):
         assert testList[i] == resultWordList[i], "test12: validating expected words before link"
     resultWordList = getDirectionalContextualWords(doc.links[0], False)
     assert len(resultWordList) == HALF_WORD_COUNT, "test12: getDirectionalContextualWords returns "+str(HALF_WORD_COUNT)+" items from back of link"
     testList = ['spec', 'correctness', 'in', 'this', 'sense', 'can', 'only', 'be', 'determined', 'by']
-    for i in xrange(len(testList)): 
+    for i in xrange(len(testList)):
         assert testList[i] == resultWordList[i], "test12: validating expected words after link"
     buildIndex(doc, "")
     assert len(doc.index.keys()) == 14, "test12: total number of unique words indexed is 14 (others were in the too common list"
@@ -991,7 +957,6 @@ def getSharedMemory():
     processManager = Manager()
     return processManager.Namespace()
 
-
 def setGlobals(mem):
     global CPU_COUNT
     global IGNORE_LIST
@@ -1006,7 +971,6 @@ def setGlobals(mem):
     IGNORE_LIST = mem.ignoreList
     CPU_COUNT = mem.cpuCount
 
-
 def diffLinksWithFilename(baselineFilename, srcFilename, mem):
     forBaseline, forSource = Pipe()
     p = Process(target=StartBaselineProcessorWithFileName, args=(baselineFilename, mem, forBaseline), name='Proc_baseline_w_filename')
@@ -1014,7 +978,6 @@ def diffLinksWithFilename(baselineFilename, srcFilename, mem):
     output = StartSourceWithFilename(srcFilename, mem, forSource)
     p.join()
     return output
-
 
 def diffLinksWithMarkupText(baselineText, sourceText, mem):
     forBaseline, forSource = Pipe()
@@ -1024,10 +987,9 @@ def diffLinksWithMarkupText(baselineText, sourceText, mem):
     p.join()
     return output
 
-
 # Process entry points
 ## ----------------------------
-    
+
 def StartBaselineProcessorWithFileName(baseLineFilenameToLoad, mem, comm):
     setGlobals(mem)
     baseDocText = loadDocumentText(baseLineFilenameToLoad)
@@ -1035,7 +997,6 @@ def StartBaselineProcessorWithFileName(baseLineFilenameToLoad, mem, comm):
         mem.error = True
         return
     StartBaselineProcessorWithMarkupText(baseDocText, mem, comm)
-
 
 def StartBaselineProcessorWithMarkupText(text, mem, comm):
     setGlobals(mem)
@@ -1066,7 +1027,6 @@ def StartBaselineProcessorWithMarkupText(text, mem, comm):
     mem.baseAllLinks = baselineDoc.links
     comm.send('done')
 
-
 def StartSourceWithFilename(sourceFilename, mem, comm):
     setGlobals(mem)
     sourceDocText = loadDocumentText(sourceFilename)
@@ -1074,11 +1034,9 @@ def StartSourceWithFilename(sourceFilename, mem, comm):
         return
     return StartSourceWithMarkupText(sourceDocText, mem, comm)
 
-
 def StartSourceWithMarkupText(text, mem, comm):
     setGlobals(mem)
     sourceDoc = parseTextToDocument(text, 'Parsing source document...')
-    s_time = time.time()
     buildIndex(sourceDoc, 'Indexing source document...')
     if mem.error:
         return None
@@ -1102,14 +1060,12 @@ def StartSourceWithMarkupText(text, mem, comm):
     resultOb.baseAllLinks = mem.baseAllLinks
     return resultOb
 
-
 def getFlagValue(flag):
     index = sys.argv.index(flag)
     if index + 1 < len(sys.argv)-2: # [0] linkdiff [len-2] baseline_doc [len-1] src_doc
         return sys.argv[index+1]
     else:
         return None
-
 
 def setRatio(newRatio, mem):
     if newRatio == None:
@@ -1120,14 +1076,12 @@ def setRatio(newRatio, mem):
     mem.ratio = newRatio
     statusUpdate('Using custom ratio: ' + str(newRatio))
 
-
 def setProcesses(matchProcesses, mem):
     if matchProcesses == None:
         return
     matchProcesses = max(int(matchProcesses, 10), 1)
     mem.cpuCount = matchProcesses
     statusUpdate('Will use ' + str(matchProcesses) + ' processes for matching')
-
 
 def setIgnoreList(newListFile, mem):
     localIgnoreList = {}
@@ -1146,10 +1100,8 @@ def setIgnoreList(newListFile, mem):
         if isinstance(ignoreItem, basestring):
             localIgnoreList[ignoreItem] = True
             counter += 1
-
     mem.ignoreList = localIgnoreList
     statusUpdate('Using ignore list; entries found: ' + str(counter))
-
 
 def processCmdParams():
     mem = getSharedMemory()
@@ -1164,6 +1116,13 @@ def processCmdParams():
     if '-runtests' in sys.argv:
         return runTests(mem)
     expectedArgs = 3
+    if not isPython64bit():
+        print "********"
+        print "WARNING: "
+        print "********"
+        print "MemoryErrors may occur during link matching on large documents."
+        print "A 64-bit Python interpreter is recommended to run this program."
+        print ""
     if '-v' in sys.argv:
         mem.showStatus = True
         setGlobals(mem)
@@ -1187,7 +1146,6 @@ def processCmdParams():
     if outStruct != None:
         dumpJSONResults(outStruct)
 
-
 def dumpJSONResults(ob):
     statusUpdate('JSON output:')
     statusUpdate('')
@@ -1202,7 +1160,6 @@ def dumpJSONResults(ob):
     dumpJSONDocResults(ob.baseAllLinks, 'baselineDoc', ob.statTotalMatches, False)
     print '}'
 
-
 def dumpJSONDocResults(links, docName, numMatchingLinks, addTrailingComma):
     print '  "' + docName + '": {'
     linkTotal = len(links)
@@ -1215,7 +1172,6 @@ def dumpJSONDocResults(links, docName, numMatchingLinks, addTrailingComma):
 
         print '    ]'
     print '  }' + (',' if addTrailingComma else '')
-
 
 def statusUpdate(text):
     if SHOW_STATUS:
@@ -1233,7 +1189,6 @@ def loadDocumentText(urlOrPath):
     else: #assume file path...
         return getTextFromLocalFile(urlOrPath) # may return None
 
-
 def getTextFromLocalFile(fileString):
     if fileString[0:1] == '"':
         fileString = fileString[1:-1]
@@ -1243,7 +1198,6 @@ def getTextFromLocalFile(fileString):
         return
     with open(fileString, 'r') as file:
         return toUnicode(file.read())
-
 
 def loadURL(url):
     try:
@@ -1257,7 +1211,6 @@ def loadURL(url):
         print 'Error opening network location: ' + url
         return None
 
-
 def toUnicode(raw):
     if raw.startswith(codecs.BOM_UTF16_LE) or raw.startswith(codecs.BOM_UTF16_BE):
         return raw.decode("utf-16", "replace")
@@ -1266,6 +1219,8 @@ def toUnicode(raw):
     else:
         return raw.decode("utf-8", "replace") # assume it.
 
+def isPython64bit():
+    return struct.calcsize("P") == 8
 
 # Only the main process should execute this (spawned processes will skip it)
 if __name__ == '__main__':
