@@ -4,6 +4,7 @@
 
 from HTMLParser import HTMLParser
 import sys
+import platform
 import os.path
 import codecs
 import json
@@ -274,9 +275,11 @@ def resolveMatchResultConflicts(matchResultsArray, p, mem):
     matchResultsArrayLen = len(matchResultsArray)
     tenPercent = matchResultsArrayLen / 10 if matchResultsArrayLen > 1000 else matchResultsArrayLen + 1
     percent = 0
+    TEST_notMatched = 0
     for i in xrange(matchResultsArrayLen):
         if matchResultsArray[i][0][2] == -1:
             matchResultsArray[i] = matchResultsArray[i][0]
+            TEST_notMatched += 1
         else:
             rowResults[i] = matchResultsArray[i]
             for matchTuple in matchResultsArray[i]:
@@ -286,8 +289,10 @@ def resolveMatchResultConflicts(matchResultsArray, p, mem):
         if i % tenPercent + 1 == tenPercent:
             percent += 10
             statusUpdateInline("preparing... " + str(percent) + "%")
+    print "not matched: " + str(TEST_notMatched)
     statusUpdate('\nResolving match conflicts...')
     onePercent = matchResultsArrayLen / 100 if matchResultsArrayLen > 1000 else matchResultsArrayLen + 1
+    print "one percent = " +str(onePercent)
     i = 0
     percent = 0
     while i < matchResultsArrayLen:
@@ -297,11 +302,12 @@ def resolveMatchResultConflicts(matchResultsArray, p, mem):
                 percent += 1
                 statusUpdateInline("resolving... " + str(percent) + "%")
 
-# Returns true if the designted row was resolved; false if some other row was resolved.
+# Returns true if the designated row was resolved; false if some other row was resolved.
 def resolveMatchRow(rowIndex, rowDict, colDict, finalMatchArray):
     if not rowIndex in rowDict:
         return True # Resolved in a previous iteration.
     rowLen = len(rowDict[rowIndex])
+    print "row "+str(rowIndex)+" potential matches: "+str(rowLen)
     assert rowLen != 0, 'If there is a row, it must have more than zero elements...'
     colConstrained = False
     rowConstrained = False
@@ -333,7 +339,6 @@ def resolveMatchRow(rowIndex, rowDict, colDict, finalMatchArray):
             if rowDict[rowIndex][i][0] > biggestRatio:
                 biggestRatio = rowDict[rowIndex][i][0]
                 biggestIndex = i
-
         finalMatchArray[rowIndex] = rowDict[rowIndex][biggestIndex]
         del rowDict[rowIndex]
         return True
@@ -345,7 +350,6 @@ def resolveMatchRow(rowIndex, rowDict, colDict, finalMatchArray):
             if colDict[colIndex][i][0] > biggestRatio:
                 biggestRatio = colDict[colIndex][i][0]
                 biggestIndex = i
-
         for i in xrange(len(colDict[colIndex])):
             rovingColumnTuple = colDict[colIndex][i]
             rovingRowIndex = rovingColumnTuple[2]
@@ -354,6 +358,7 @@ def resolveMatchRow(rowIndex, rowDict, colDict, finalMatchArray):
         return rowIndex == biggestIndex
 
 def resolveNonConstrainedMatches(anchorRowIndex, rowDict, colDict, finalMatchArray):
+    print "Unconstrained match!"
     highestRatio = -0.1
     highestRowDict = highestColDict = None
     rowList = [anchorRowIndex]
@@ -363,6 +368,7 @@ def resolveNonConstrainedMatches(anchorRowIndex, rowDict, colDict, finalMatchArr
         iter += 1
         for rowIterator in xrange(len(rowDict[rowIndex])):
             colIndex = rowDict[rowIndex][rowIterator][1]
+            print "investigative column size: " + str(len(colDict[colIndex]))
             for tuple in colDict[colIndex]:
                 localRowIndex = tuple[2]
                 if localRowIndex != rowIndex:
@@ -384,6 +390,7 @@ def resolveNonConstrainedMatches(anchorRowIndex, rowDict, colDict, finalMatchArr
                     highestColDict[colIndex].append(tuple)
     rowKeys = highestRowDict.keys()
     colKeys = highestColDict.keys()
+    print "row/col grid to consider: "+str(len(rowKeys))+"x"+str(len(colKeys))
     if len(rowKeys) == 1 and len(colKeys) == 1:
         selectAndRemoveFromNonConstrainedMatches(rowKeys[0], colKeys[0], rowDict, colDict, finalMatchArray)
         return anchorRowIndex == rowKeys[0]
@@ -418,7 +425,7 @@ def selectAndRemoveFromNonConstrainedMatches(rowIndex, colIndex, rowDict, colDic
             row = rowDict[tuple[2]]
             for i in xrange(len(row)):
                 if tuple == row[i]:
-                    if len(row) == 1:
+                    if len(row) == 1: #don't leave a row vacant as a result
                         finalMatchArray[row[i][2]] = (row[i][0], row[i][1], -1)
                         del rowDict[row[i][2]]
                     else:
@@ -700,26 +707,10 @@ def runTests(mem):
     doc2 = parser.parse("Here's some text that isn't the same<a href=foo>")
     assert getAndCompareRatio(doc.links[0], doc2.links[0]) > 0.85, 'test7: getAndCompareRatio working for similar sentances'
 
+    # TODO: Figure out how to report the columns that weren't matched (not just rows)
+    
     # test 8 - (new) Validate the complexities of the match resolver
-    #     0 1 2 3 4 5 6 7 8
-    #   +-------------------
-    # 0 | a A
-    # 1 |     b
-    # 2 |     b                 .. 4 5 6 7 8        .. 4 5 6 7 8         .. 4 5 6 7..
-    # 3 |       C               -------------       -------------        -------------
-    # 4 |         d d,d d,         d d,  d,            d d,  d,               d,  d,    (row constrained)
-    # 5 |         d,d,d d,    =>   d,d,  d,     =>     d,d,  d,      =>     ()
-    # 6 |           d D d              ()
-    # 7 |         d,  d   d,       d,      d,                  ()
-    # 8 |     B
-
-    # A - Row constrained
-    # B - Col constrained
-    # C - Row + Col constrained
-    # D - Unconstrained: pick best match
-    # d,- Unconstrained: pick option which is only result in row or column
-    # d - Unconstrained: pick top-left option
-
+    
     array = [
         [(0.7, 0, 0), (0.75, 1, 0)],                            #0
         [(0.7, 2, 1)],                                          #1
@@ -734,6 +725,24 @@ def runTests(mem):
     p = Pool(1)
     resolveMatchResultConflicts(array, p, mem)
     p.close()
+    #     0 1 2 3 4 5 6 7 8
+    #   +-------------------
+    # 0 | a A
+    # 1 |     b
+    # 2 |     b                 .. 4 5 6 7 8        .. 4 5 6 7 8         .. 4 5 6 7..
+    # 3 |       C               -------------       -------------        -------------
+    # 4 |         d d,d d,         d d,  d,            d d,  d,               d,  d,    (row constrained)
+    # 5 |         d,d,d d,    =>   d,d,  d,     =>     d,d,  d,      =>     ()
+    # 6 |           d D d              ()
+    # 7 |         d,  d   d,       d,      d,          --      {} <-- disqualified, not in constraining range
+    # 8 |     B
+    
+    # A - Row constrained
+    # B - Col constrained
+    # C - Row + Col constrained
+    # D - Unconstrained: pick best match
+    # d,- Unconstrained: pick first option which is only result in row or column (that is not disqualified--see next test)
+    # d - Unconstrained: pick top-left option
     assert array[0][0] == 0.75, 'test8: index 0 matches ratio'
     assert array[0][1] == 1, 'test8: index 0 matches other'
     assert array[0][2] == 0, 'test8: index 0 matches index'
@@ -752,16 +761,131 @@ def runTests(mem):
     assert array[6][0] == 0.8, 'test8: index 6 matches ratio'
     assert array[6][1] == 6, 'test8: index 6 matches other'
     assert array[6][2] == 6, 'test8: index 6 matches index'
-    assert array[7][0] == 0.75, 'test8: index 7 matches ratio'
-    assert array[7][1] == 8, 'test8: index 7 matches other'
-    assert array[7][2] == 7, 'test8: index 7 matches index'
     assert array[5][0] == 0.75, 'test8: index 5 matches ratio'
     assert array[5][1] == 4, 'test8: index 5 matches other'
     assert array[5][2] == 5, 'test8: index 5 matches index'
+    #    ..4 5 6 7 8     .. 4 5 6 7 8         .. 4 5 6 7..
+    #   +-------------   -------------        -------------
+    # 4 |    d,  d,           d,  d,               ()  d,    (row constrained)
+    # 7 |          d,              {} <-- disqualified, not in constraining range
     assert array[4][0] == 0.75, 'test8: index 4 matches ratio'
     assert array[4][1] == 5, 'test8: index 4 matches other'
     assert array[4][2] == 4, 'test8: index 4 matches index'
+    #    ..8     ..8
+    #   +----   -----
+    # 7 | d,      () <- row + column constrained
+    assert array[7][0] == 0.75, 'test8: index 7 matches ratio'
+    assert array[7][1] == 8, 'test8: index 7 matches other'
+    assert array[7][2] == 7, 'test8: index 7 matches index'
+    
 
+    # test 8b - ignore irrelevant rows/cols
+    array = [
+        [(0.7, 1, 0), (0.7, 2, 0)],                             #0
+        [(0.7, 2, 1)],                                          #1
+        [(0.7, 2, 2)],                                          #2
+        [(0.8, 2, 3), (0.9, 3, 3)],                             #3
+        [(0.8, 1, 4), (0.8, 2, 4), (0.9, 3, 4), (0.8, 4, 4), (0.8, 5, 4)], #4
+        [(0.7, 3, 5), (0.9, 5, 5), (0.7, 6, 5), (0.7, 7, 5)],   #5
+        [(0.7, 6, 6), (0.8, 7, 6), (0.7, 8, 6)],                #6
+        [(0.7, 2, 7)],                                          #7
+        [(0.9, 0, 8), (0.8, 1, 8)],                             #8
+        [(0.9, 0, 9)]                                           #9
+    ]
+    p = Pool(1)
+    resolveMatchResultConflicts(array, p, mem)
+    p.close()
+    #  (initial setup)     (entries not seen)   (disqualified best match results)
+    #     0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6    ..1 2..
+    #   +-------------------  -------------------  ---------------  ---------
+    # 0 |   a a                  a a                  a a              ()a <-- first of the highest match in unique row/col
+    # 1 |     a                    a                    a                a
+    # 2 |     a                    a                    a                a
+    # 3 |     a,A-          =>     a,A-          =>     --{}
+    # 4 |   a,a,A-a,a,           a,a,A-a,a,           ----{}----       --   <-- all col 1 entries removed (like this one)
+    # 5 |       a^  A^a^a^           ()  ()()()   
+    # 6 |             a^a^a^               ()()()
+    # 7 |     a                    a                    a                a
+    # 8 | A-a,                 A-a,                 {}-- 
+    # 9 | A^                   ()             
+    
+    # target row (0) sets up a constraining range (the only possible matches for this row!)
+    # A^ and a^ - dropped/skipped/never considered because they are not in a row of a column in the constraining range.
+    # A- best match by best ratio, but disqualified because it's outside of the constraining range (it isn't beeing fully considered in context because not all related row/cols are being considered in this pass)
+    # a, next-best options dropped because they are in a disqualified row    
+    assert array[0][0] == 0.7, 'test8b: index 0 matches ratio'
+    assert array[0][1] == 1, 'test8b: index 0 matches other'
+    assert array[0][2] == 0, 'test8b: index 0 matches index'
+    #     0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6    ..1 2..
+    #   +-------------------  -------------------  ---------------  ---------
+    # 1 |     a                    a                    a                () <-- highest of remaining matches
+    # 2 |     a                    a                    a                a   <-- no result for this row (last column eliminated)
+    # 3 |     a,A-          =>     a,A-          =>     --{}
+    # 4 |     a,A-a,a,             a,A-a,a,             --{}----
+    # 5 |       a^  A^a^a^           ()  ()()()   
+    # 6 |             a^a^a^               ()()()
+    # 7 |     a                    a                    a                a   <-- no result for this row (last column eliminated)
+    # 8 | A-                   ()                     
+    # 9 | A^                   ()             
+    assert array[1][0] == 0.7, 'test8b: index 1 matches ratio'
+    assert array[1][1] == 2, 'test8b: index 1 matches other'
+    assert array[1][2] == 1, 'test8b: index 1 matches index'
+    assert array[2][0] == 0.0, 'test8b: index 2 matches ratio'
+    assert array[2][1] == 2, 'test8b: index 2 matches other'
+    assert array[2][2] == -1, 'test8b: index 2 matches index'
+    assert array[7][0] == 0.0, 'test8b: index 7 matches ratio'
+    assert array[7][1] == 2, 'test8b: index 7 matches other'
+    assert array[7][2] == -1, 'test8b: index 7 matches index'
+    #     0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6 7 8    ..3 4 5 6 7..    ..3 4 5..
+    #   +-------------------  -------------------  ---------------  -----------
+    # 3 |       A           =>       A           =>   A                ()  <-- first match in unique row/col
+    # 4 |       A a,a,               A a,a,           A a,a,           A a,a,
+    # 5 |       a   A-a a            a   A-a a        --  {}----
+    # 6 |             a^a^a^               ()()()
+    # 8 | A^                   ()                     
+    # 9 | A^                   ()             
+    assert array[3][0] == 0.9, 'test8b: index 3 matches ratio'
+    assert array[3][1] == 3, 'test8b: index 3 matches other'
+    assert array[3][2] == 3, 'test8b: index 3 matches index'
+    #     0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6 7 8    ..4 5 6 7.. 
+    #   +-------------------  -------------------  -------------
+    # 4 |         a,a,                 a,a,           a,a,      
+    # 5 |           A a a                A a a          ()a a   <-- only biggest match available!
+    # 6 |             a^a^a^               ()()()
+    # 8 | A^                   ()                     
+    # 9 | A^                   ()             
+    assert array[5][0] == 0.9, 'test8b: index 5 matches ratio'
+    assert array[5][1] == 5, 'test8b: index 5 matches other'
+    assert array[5][2] == 5, 'test8b: index 5 matches index'
+    #     0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6 7 8    ..4 5 6 7.. 
+    #   +-------------------  -------------------  -------------
+    # 4 |         a,                   a,             ()  <-- only option left!        
+    # 6 |             a^a^a^               ()()()
+    # 8 | A^                   ()                     
+    # 9 | A^                   ()             
+    assert array[4][0] == 0.8, 'test8b: index 4 matches ratio'
+    assert array[4][1] == 4, 'test8b: index 4 matches other'
+    assert array[4][2] == 4, 'test8b: index 4 matches index'
+    #     0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6 7 8    ..6 7 8.. 
+    #   +-------------------  -------------------  -----------
+    # 6 |             a a a                a a a      ()  <- first of highest matching results
+    # 8 | A^                   ()                     
+    # 9 | A^                   ()             
+    assert array[6][0] == 0.7, 'test8b: index 6 matches ratio'
+    assert array[6][1] == 6, 'test8b: index 6 matches other'
+    assert array[6][2] == 6, 'test8b: index 6 matches index'
+    #     0        0 
+    #   +----     ----
+    # 8 | A    =>  ()  <- column constrained
+    # 9 | A        A   <- not matched
+    assert array[8][0] == 0.9, 'test8b: index 8 matches ratio'
+    assert array[8][1] == 0, 'test8b: index 8 matches other'
+    assert array[8][2] == 8, 'test8b: index 8 matches index'
+    assert array[9][0] == 0.9, 'test8b: index 9 matches ratio'
+    assert array[9][1] == 0, 'test8b: index 9 matches other'
+    assert array[9][2] == -1, 'test8b: index 9 matches index'
+    
+    
     # test 9 - put it all together
     markup1 = "This is the beginning link: <a href=#top>Top</a>: when in doubt, use this test <a href=http://test/test/test.com>if</a> you are <a href='http://external/comparing'>comparing lines</a> as sequences of characters, and don't want to <a href=#sync>synch</a> up on blanks or hard <span id='sync'>tabs</span>. The optional arguments a and b are sequences to be compared; both <tt>default</tt> to empty strings. The elements of both sequences must be hashable. The optional argument autojunk can be used to disable the automatic <a href=#not_matched>junk heuristic</a>. New in version 2.7.1: The <a href='http://test/test/test.com'>autojunk</a> parameter.."
     markup2 = "This is the beginning link: <a href=#top>Top</a>: when in doubt, use this test <a href=http://test/test/test.com>if</a> you are <a href='http://external/comparing'>comparing a line</a> as sequences of characters, and don't want to <a href=#sync>synch</a> up on <i>blanks</i> or <b>hard <span id='sync'>tabs</span></b>. The optional arguments a and b are sequences to be compared; both will <tt>default</tt> to empty strings. The elements of both sequences must be hashable--the optional argument autoskip may stop the automatic skipping behavior for the <a href=#not_matched>stop algorithm</a>. With the addition of a new stop algorithm in this document, you may now see that things aren't quite <a href='http://test/test/test.com'>the same</a>.."
@@ -1220,8 +1344,8 @@ def toUnicode(raw):
         return raw.decode("utf-8", "replace") # assume it.
 
 def isPython64bit():
-    return struct.calcsize("P") == 8
+    return platform.architecture()[0] == '64bit'
 
-# Only the main process should execute this (spawned processes will skip it)
+    # Only the main process should execute this (spawned processes will skip it)
 if __name__ == '__main__':
     processCmdParams()
