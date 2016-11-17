@@ -229,7 +229,7 @@ def StartBuildMatchResult(tuple):
     wordList, otherIndex, otherNonIndexed, otherLinksLen, wordListOriginIndex, renderProgress, mem = tuple
     setGlobals(mem)
     possibleMatches = len(wordList)
-    allLinks = [0] * otherLinksLen
+    allLinks = [0] * otherLinksLen # creates an array initialized with zeros
     for word in wordList: # typically 20 such words...
         # skip any words from the list that meet the "too common" threshold
         if word in otherNonIndexed:
@@ -268,11 +268,21 @@ def StartBuildMatchResult(tuple):
     # Return the list of tuples (ratio, bestMatchingIndex)
     return candidates
 
-def resolveMatchResultConflicts(matchResultsArray, p, mem):
+# Performs the following: 1) in-place modifies the provided matchResultsArray to contain the result 
+# set for the "own" links collection, (resolved hits and misses combined and in the cannonical order
+# AND 2) returns a similar list for "near-matches" (the links potentially matching--with qualifying 
+# ratios--but were not selected as the "official" match per this algorithm. The single tuple result
+# will be the tuple with the highest ratio if there were multiples. For the "other" links collection
+# that only leaves the set of links which were not matched at all (matched and "near-matched" are 
+# handled here) to have a 0.0 ratio, which may not be accurate. To get the best-match ratio for 
+# these unmatched links, the StartBuildMatchResult algorithm must be run for each of them.
+def resolveMatchResultConflicts(matchResultsArray, otherArrayLen):
+    # These two maps are used for eliminating match combinations w/out affecting the original array
     rowResults = {}
-    colResults = {}
+    colResults = {} 
     statusUpdate('\nPreparing to resolve matches...')
     matchResultsArrayLen = len(matchResultsArray)
+    otherNearMatches = [] # will be filled in for "near-matches" where no match was found in a column despite there being options for a potential match.
     tenPercent = matchResultsArrayLen / 10 if matchResultsArrayLen > 1000 else matchResultsArrayLen + 1
     percent = 0
     TEST_notMatched = 0
@@ -301,8 +311,14 @@ def resolveMatchResultConflicts(matchResultsArray, p, mem):
             if i % onePercent + 1 == onePercent:
                 percent += 1
                 statusUpdateInline("resolving... " + str(percent) + "%")
+    # TODO: populate near-matches with what's left in the colResults dictionary!
+    
 
 # Returns true if the designated row was resolved; false if some other row was resolved.
+# in-place modifies both rowDict and colDict when a match occurs, both the related row/col dictionary
+# entry are removed; for rowDict this helps with later skipping an already-resolved row when iterating
+# the rowIndexes; for colDict this excludes columns from being considered for "near matches" after 
+# all rows have been resolved.
 def resolveMatchRow(rowIndex, rowDict, colDict, finalMatchArray):
     if not rowIndex in rowDict:
         return True # Resolved in a previous iteration.
@@ -330,6 +346,8 @@ def resolveMatchRow(rowIndex, rowDict, colDict, finalMatchArray):
         return resolveNonConstrainedMatches(rowIndex, rowDict, colDict, finalMatchArray)
     elif rowConstrained and colConstrained:
         finalMatchArray[rowIndex] = rowDict[rowIndex][0]
+        # Remove the colDict entry so that it is not checked later when gathering otherNearMatches
+        del colDict[rowDict[rowIndex][0][1]]
         del rowDict[rowIndex]
         return True
     elif rowConstrained:
@@ -340,6 +358,7 @@ def resolveMatchRow(rowIndex, rowDict, colDict, finalMatchArray):
                 biggestRatio = rowDict[rowIndex][i][0]
                 biggestIndex = i
         finalMatchArray[rowIndex] = rowDict[rowIndex][biggestIndex]
+        del colDict[ rowDict[rowIndex][biggestIndex][1] ]
         del rowDict[rowIndex]
         return True
     else:
@@ -355,6 +374,7 @@ def resolveMatchRow(rowIndex, rowDict, colDict, finalMatchArray):
             rovingRowIndex = rovingColumnTuple[2]
             finalMatchArray[rovingRowIndex] = (rovingColumnTuple[0], rovingColumnTuple[1], rovingColumnTuple[2] if i == biggestIndex else -1)
             del rowDict[rovingRowIndex]
+        del colDict[colIndex]
         return rowIndex == biggestIndex
 
 def resolveNonConstrainedMatches(anchorRowIndex, rowDict, colDict, finalMatchArray):
@@ -450,7 +470,7 @@ def applyOtherMatchArray(otherMatchResultsArray, ownLinks):
     matchesCount = 0
     for tuple in otherMatchResultsArray:
         ratio, ownIndex, otherIndex = tuple
-        if ownIndex != -1:
+        if ownIndex != -1: # entries with no possible matches are (0.0, -1, -1)
             link = ownLinks[ownIndex]
             link.matchRatio = ratio
             link.matchIndex = otherIndex
@@ -722,9 +742,7 @@ def runTests(mem):
         [(0.75, 4, 7),(0.7, 6, 7),  (0.75, 8, 7)],              #7
         [(0.75, 2, 8)]                                          #8
     ]
-    p = Pool(1)
-    resolveMatchResultConflicts(array, p, mem)
-    p.close()
+    resolveMatchResultConflicts(array, 9)
     #     0 1 2 3 4 5 6 7 8
     #   +-------------------
     # 0 | a A
@@ -792,9 +810,7 @@ def runTests(mem):
         [(0.9, 0, 8), (0.8, 1, 8)],                             #8
         [(0.9, 0, 9)]                                           #9
     ]
-    p = Pool(1)
-    resolveMatchResultConflicts(array, p, mem)
-    p.close()
+    resolveMatchResultConflicts(array, 9)
     #  (initial setup)     (entries not seen)   (disqualified best match results)
     #     0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6    ..1 2..
     #   +-------------------  -------------------  ---------------  ---------
@@ -1138,8 +1154,8 @@ def StartBaselineProcessorWithMarkupText(text, mem, comm):
     for ownIndex in xrange(len(baselineDoc.links)):
         inputParamsArray.append((baselineDoc.links[ownIndex].words, srcIndex, srcNonIndexed, srcLinksLen, ownIndex, ownIndex % onePercent + 1 == onePercent, mem))
     baselineMatches = p.map(StartBuildMatchResult, inputParamsArray)
-    resolveMatchResultConflicts(baselineMatches, p, mem)
     p.close()
+    resolveMatchResultConflicts(baselineMatches, srcLinksLen)
     mem.baselineMatches = baselineMatches
     mem.ownLinksLen = len(baselineDoc.links)
     comm.send('apply:baseline matches')
