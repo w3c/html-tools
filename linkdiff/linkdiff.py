@@ -270,49 +270,53 @@ def StartBuildMatchResult(tuple):
 
 # Performs the following: 1) in-place modifies the provided matchResultsArray to contain the result 
 # set for the "own" links collection, (resolved hits and misses combined and in the cannonical order
-# AND 2) returns a similar list for "near-matches" (the links potentially matching--with qualifying 
-# ratios--but were not selected as the "official" match per this algorithm. The single tuple result
-# will be the tuple with the highest ratio if there were multiples. For the "other" links collection
-# that only leaves the set of links which were not matched at all (matched and "near-matched" are 
-# handled here) to have a 0.0 ratio, which may not be accurate. To get the best-match ratio for 
-# these unmatched links, the StartBuildMatchResult algorithm must be run for each of them.
-def resolveMatchResultConflicts(matchResultsArray, otherArrayLen):
+# AND 2) returns a sparce list for "near-matches" (the links potentially matching--with qualifying 
+# ratios--but were not selected as the "official" match per this algorithm). The single tuple result
+# will be the tuple with the highest ratio if there were multiples. 
+# That only leaves the set of links which were not matched at all in the "other" set un-analyzed
+# (matched and "near-matched" are handled here) which will have a 0.0 ratio--which is probably not
+# true. To get the best-match ratio for these unmatched links, the StartBuildMatchResult algorithm 
+# must be run for each of them (with no expected "new" matches--just refined un-matched best-case 
+# ratios).
+def resolveMatchResultConflicts(matchResultsArray):
     # These two maps are used for eliminating match combinations w/out affecting the original array
     rowResults = {}
     colResults = {} 
-    statusUpdate('\nPreparing to resolve matches...')
     matchResultsArrayLen = len(matchResultsArray)
-    otherNearMatches = [] # will be filled in for "near-matches" where no match was found in a column despite there being options for a potential match.
-    tenPercent = matchResultsArrayLen / 10 if matchResultsArrayLen > 1000 else matchResultsArrayLen + 1
-    percent = 0
-    TEST_notMatched = 0
     for i in xrange(matchResultsArrayLen):
         if matchResultsArray[i][0][2] == -1:
             matchResultsArray[i] = matchResultsArray[i][0]
-            TEST_notMatched += 1
         else:
             rowResults[i] = matchResultsArray[i]
             for matchTuple in matchResultsArray[i]:
                 if matchTuple[1] not in colResults:
                     colResults[matchTuple[1]] = []
                 colResults[matchTuple[1]].append(matchTuple)
-        if i % tenPercent + 1 == tenPercent:
-            percent += 10
-            statusUpdateInline("preparing... " + str(percent) + "%")
-    print "not matched: " + str(TEST_notMatched)
-    statusUpdate('\nResolving match conflicts...')
+    statusUpdate('\nResolving match conflicts...(this may take a few minutes)')
     onePercent = matchResultsArrayLen / 100 if matchResultsArrayLen > 1000 else matchResultsArrayLen + 1
-    print "one percent = " +str(onePercent)
     i = 0
+    count = 0
     percent = 0
     while i < matchResultsArrayLen:
+        # resolveMatchRow may not resolve the row it's on, but it is guaranteed to resolve one row somewhere.
+        # use this to better track progress.
         if resolveMatchRow(i, rowResults, colResults, matchResultsArray):
             i += 1
-            if i % onePercent + 1 == onePercent:
-                percent += 1
-                statusUpdateInline("resolving... " + str(percent) + "%")
-    # TODO: populate near-matches with what's left in the colResults dictionary!
-    
+        count += 1 # regardless
+        if count % onePercent + 1 == onePercent:
+            percent += 1
+            statusUpdateInline("resolving... " + str(percent) + "%")
+    otherNearMatches = [] # fill-in for "near-matches" where no match was found in a column despite there being options for a potential match.
+    for colIndex in colResults.keys():
+        # find local maxiumum ratio among remaining options
+        biggestRatio = -0.1
+        biggestRowIndex = -1
+        for tuple in colResults[colIndex]:
+            if tuple[0] > biggestRatio:
+                biggestRatio = tuple[0]
+                biggestRowIndex = tuple[2]
+        otherNearMatches.append((biggestRatio, colIndex, biggestRowIndex))
+    return otherNearMatches
 
 # Returns true if the designated row was resolved; false if some other row was resolved.
 # in-place modifies both rowDict and colDict when a match occurs, both the related row/col dictionary
@@ -323,7 +327,6 @@ def resolveMatchRow(rowIndex, rowDict, colDict, finalMatchArray):
     if not rowIndex in rowDict:
         return True # Resolved in a previous iteration.
     rowLen = len(rowDict[rowIndex])
-    print "row "+str(rowIndex)+" potential matches: "+str(rowLen)
     assert rowLen != 0, 'If there is a row, it must have more than zero elements...'
     colConstrained = False
     rowConstrained = False
@@ -376,61 +379,66 @@ def resolveMatchRow(rowIndex, rowDict, colDict, finalMatchArray):
             del rowDict[rovingRowIndex]
         del colDict[colIndex]
         return rowIndex == biggestIndex
-
+        
 def resolveNonConstrainedMatches(anchorRowIndex, rowDict, colDict, finalMatchArray):
-    print "Unconstrained match!"
     highestRatio = -0.1
     highestRowDict = highestColDict = None
-    rowList = [anchorRowIndex]
-    iter = 0
-    while iter < len(rowList):
-        rowIndex = rowList[iter]
-        iter += 1
-        for rowIterator in xrange(len(rowDict[rowIndex])):
-            colIndex = rowDict[rowIndex][rowIterator][1]
-            print "investigative column size: " + str(len(colDict[colIndex]))
-            for tuple in colDict[colIndex]:
-                localRowIndex = tuple[2]
-                if localRowIndex != rowIndex:
-                    if localRowIndex not in rowList:
-                        rowList.append(localRowIndex)
-                    continue
-                if tuple[0] > highestRatio:
-                    highestRowDict = {}
-                    highestRowDict[localRowIndex] = [tuple]
-                    highestColDict = {}
-                    highestColDict[colIndex] = [tuple]
-                    highestRatio = tuple[0]
-                elif tuple[0] == highestRatio:
-                    if localRowIndex not in highestRowDict:
-                        highestRowDict[localRowIndex] = []
-                    if colIndex not in highestColDict:
-                        highestColDict[colIndex] = []
-                    highestRowDict[localRowIndex].append(tuple)
-                    highestColDict[colIndex].append(tuple)
-    rowKeys = highestRowDict.keys()
+    # build constraining range
+    constrainingColRange = {}
+    for tuple in rowDict[anchorRowIndex]:
+        constrainingColRange[tuple[1]] = True
+    visitedRow = {}
+    for colIndex in constrainingColRange.keys(): # perf note: the 'in' expression is only evaluated once
+        # traverse each column
+        for colTuple in colDict[colIndex]:
+            # Get the row of this column entry and iterate (if the row hasn't been visited)
+            if colTuple[2] in visitedRow:
+                continue # Skip this row
+            visitedRow[colTuple[2]] = True
+            # pre-scan for >= best ratio results that are out the constraining range. This is a pre-
+            # scan because I would otherwise need to roll-back the state of the highestCol/RowDict
+            # objects if they found a (legitimate) higher value before stumbling on the out-of-range
+            # option.
+            for preScanRowTuple in rowDict[colTuple[2]]:
+                if preScanRowTuple[0] >= highestRatio and not preScanRowTuple[1] in constrainingColRange:
+                    break # invalidating this entire row
+            else: # loop-completed w/out breaking, row is safe.
+                for rowTuple in rowDict[colTuple[2]]:
+                    # It's in the constraining range...
+                    if rowTuple[0] > highestRatio:
+                        highestRowDict = { rowTuple[2]: [rowTuple] }
+                        highestColDict = { rowTuple[1]: [rowTuple] }
+                        highestRatio = rowTuple[0]
+                    elif rowTuple[0] == highestRatio:
+                        if rowTuple[2] not in highestRowDict:
+                            highestRowDict[rowTuple[2]] = []
+                        if rowTuple[1] not in highestColDict:
+                            highestColDict[rowTuple[1]] = []
+                        highestRowDict[rowTuple[2]].append(rowTuple)
+                        highestColDict[rowTuple[1]].append(rowTuple)
+    # This has a stable ascending sort for ordinal keys, so regardless of the order they were added,
+    # they will be processed in the correct order.
+    rowKeys = highestRowDict.keys() 
     colKeys = highestColDict.keys()
-    print "row/col grid to consider: "+str(len(rowKeys))+"x"+str(len(colKeys))
     if len(rowKeys) == 1 and len(colKeys) == 1:
         selectAndRemoveFromNonConstrainedMatches(rowKeys[0], colKeys[0], rowDict, colDict, finalMatchArray)
         return anchorRowIndex == rowKeys[0]
-    for rIndex in rowKeys:
-        if len(highestRowDict[rIndex]) == 1:
-            selectAndRemoveFromNonConstrainedMatches(rIndex, highestRowDict[rIndex][0][1], rowDict, colDict, finalMatchArray)
-            return anchorRowIndex == rIndex
-    for cIndex in colKeys:
-        if len(highestColDict[cIndex]) == 1:
-            rIndex = highestColDict[cIndex][0][2]
-            selectAndRemoveFromNonConstrainedMatches(rIndex, cIndex, rowDict, colDict, finalMatchArray)
-            return anchorRowIndex == rIndex
+    # check each entry, row-by-row for only entry in its row or col. If so, select it and quit.
+    rowKeys.sort()
+    for rowKey in rowKeys:
+        for tuple in highestRowDict[rowKey]:
+            if len(highestColDict[tuple[1]]) == 1 or len(highestRowDict[tuple[2]]) == 1:
+                selectAndRemoveFromNonConstrainedMatches(tuple[2], tuple[1], rowDict, colDict, finalMatchArray)
+                return anchorRowIndex == tuple[2]
+    # Stalemate. Pick row 0, first item.
     tuple = highestRowDict[rowKeys[0]][0]
-    rIndex = tuple[2]
-    selectAndRemoveFromNonConstrainedMatches(rIndex, tuple[1], rowDict, colDict, finalMatchArray)
-    return anchorRowIndex == rIndex
+    selectAndRemoveFromNonConstrainedMatches(tuple[2], tuple[1], rowDict, colDict, finalMatchArray)
+    return anchorRowIndex == tuple[2]
 
 def selectAndRemoveFromNonConstrainedMatches(rowIndex, colIndex, rowDict, colDict, finalMatchArray):
     selectedRow = rowDict[rowIndex]
     selectedCol = colDict[colIndex]
+    # remove any column results from this matched row...
     for tuple in selectedRow:
         if tuple[1] == colIndex:
             finalMatchArray[rowIndex] = tuple
@@ -440,6 +448,8 @@ def selectAndRemoveFromNonConstrainedMatches(rowIndex, colIndex, rowDict, colDic
                 if tuple == col[i]:
                     del col[i]
                     break
+    # for each column, may need to remove isolated non-matching row entries, so they are not visited
+    # later (they can't be matched).
     for tuple in selectedCol:
         if tuple[2] != rowIndex:
             row = rowDict[tuple[2]]
@@ -450,7 +460,8 @@ def selectAndRemoveFromNonConstrainedMatches(rowIndex, colIndex, rowDict, colDic
                         del rowDict[row[i][2]]
                     else:
                         del row[i]
-                    break
+                    break                 
+    del colDict[colIndex] # prevents searching this column for "near matches" later
     del rowDict[rowIndex]
 
 def applyOwnMatchArray(ownMatchResultsArray, ownLinks):
@@ -466,17 +477,22 @@ def applyOwnMatchArray(ownMatchResultsArray, ownLinks):
             matchesCount += 1
     return matchesCount
 
-def applyOtherMatchArray(otherMatchResultsArray, ownLinks):
+def applyOtherMatchArray(otherMatchResultsArray, nearMissesList, ownLinks):
     matchesCount = 0
     for tuple in otherMatchResultsArray:
         ratio, ownIndex, otherIndex = tuple
-        if ownIndex != -1: # entries with no possible matches are (0.0, -1, -1)
+        if ownIndex != -1: # entries with no possible matches are (0.0, -1, -1), these have no meaningful info for me at all.
             link = ownLinks[ownIndex]
             link.matchRatio = ratio
             link.matchIndex = otherIndex
             if otherIndex != -1:
                 link.status = 'matched'
                 matchesCount += 1
+    # Apply ratio info from the near-misses list
+    for tuple in nearMissesList:
+        ratio, ownIndex, missedValue = tuple
+        ownLinks[ownIndex].matchRatio = ratio
+        # sadly, not matched though...
     return matchesCount
 
 # If the paramter is true, returns a tuple where
@@ -727,10 +743,7 @@ def runTests(mem):
     doc2 = parser.parse("Here's some text that isn't the same<a href=foo>")
     assert getAndCompareRatio(doc.links[0], doc2.links[0]) > 0.85, 'test7: getAndCompareRatio working for similar sentances'
 
-    # TODO: Figure out how to report the columns that weren't matched (not just rows)
-    
     # test 8 - (new) Validate the complexities of the match resolver
-    
     array = [
         [(0.7, 0, 0), (0.75, 1, 0)],                            #0
         [(0.7, 2, 1)],                                          #1
@@ -742,7 +755,7 @@ def runTests(mem):
         [(0.75, 4, 7),(0.7, 6, 7),  (0.75, 8, 7)],              #7
         [(0.75, 2, 8)]                                          #8
     ]
-    resolveMatchResultConflicts(array, 9)
+    misses = resolveMatchResultConflicts(array)
     #     0 1 2 3 4 5 6 7 8
     #   +-------------------
     # 0 | a A
@@ -795,8 +808,15 @@ def runTests(mem):
     assert array[7][0] == 0.75, 'test8: index 7 matches ratio'
     assert array[7][1] == 8, 'test8: index 7 matches other'
     assert array[7][2] == 7, 'test8: index 7 matches index'
+    # Now check the "near misses" to ensure they are right...
+    assert len(misses) == 2, 'test8: near-miss check: correct number of near-misses'
+    assert misses[0][0] == 0.7, 'test8: near-miss check: index 0 matches ratio'
+    assert misses[0][1] == 0, 'test8: near-miss check: index 0 matches colIndex'
+    assert misses[0][2] == 0, 'test8: near-miss check: index 0 matches rowIndex'
+    assert misses[1][0] == 0.75, 'test8: near-miss check: index 1 matches ratio'
+    assert misses[1][1] == 7, 'test8: near-miss check: index 1 matches colIndex'
+    assert misses[1][2] == 4, 'test8: near-miss check: index 1 matches rowIndex'
     
-
     # test 8b - ignore irrelevant rows/cols
     array = [
         [(0.7, 1, 0), (0.7, 2, 0)],                             #0
@@ -810,7 +830,7 @@ def runTests(mem):
         [(0.9, 0, 8), (0.8, 1, 8)],                             #8
         [(0.9, 0, 9)]                                           #9
     ]
-    resolveMatchResultConflicts(array, 9)
+    misses = resolveMatchResultConflicts(array)
     #  (initial setup)     (entries not seen)   (disqualified best match results)
     #     0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6    ..1 2..
     #   +-------------------  -------------------  ---------------  ---------
@@ -846,10 +866,10 @@ def runTests(mem):
     assert array[1][0] == 0.7, 'test8b: index 1 matches ratio'
     assert array[1][1] == 2, 'test8b: index 1 matches other'
     assert array[1][2] == 1, 'test8b: index 1 matches index'
-    assert array[2][0] == 0.0, 'test8b: index 2 matches ratio'
+    assert array[2][0] == 0.7, 'test8b: index 2 matches ratio'
     assert array[2][1] == 2, 'test8b: index 2 matches other'
     assert array[2][2] == -1, 'test8b: index 2 matches index'
-    assert array[7][0] == 0.0, 'test8b: index 7 matches ratio'
+    assert array[7][0] == 0.7, 'test8b: index 7 matches ratio'
     assert array[7][1] == 2, 'test8b: index 7 matches other'
     assert array[7][2] == -1, 'test8b: index 7 matches index'
     #     0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6 7 8    ..3 4 5 6 7..    ..3 4 5..
@@ -884,11 +904,11 @@ def runTests(mem):
     assert array[4][2] == 4, 'test8b: index 4 matches index'
     #     0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6 7 8    ..6 7 8.. 
     #   +-------------------  -------------------  -----------
-    # 6 |             a a a                a a a      ()  <- first of highest matching results
+    # 6 |             a a,a                a a,a        ()  <- highest matching result
     # 8 | A^                   ()                     
     # 9 | A^                   ()             
-    assert array[6][0] == 0.7, 'test8b: index 6 matches ratio'
-    assert array[6][1] == 6, 'test8b: index 6 matches other'
+    assert array[6][0] == 0.8, 'test8b: index 6 matches ratio'
+    assert array[6][1] == 7, 'test8b: index 6 matches other'
     assert array[6][2] == 6, 'test8b: index 6 matches index'
     #     0        0 
     #   +----     ----
@@ -900,7 +920,14 @@ def runTests(mem):
     assert array[9][0] == 0.9, 'test8b: index 9 matches ratio'
     assert array[9][1] == 0, 'test8b: index 9 matches other'
     assert array[9][2] == -1, 'test8b: index 9 matches index'
-    
+    # Now check the "near misses" to ensure they are right...
+    assert len(misses) == 2, 'test8b: near-miss check: correct number of near-misses'
+    assert misses[0][0] == 0.7, 'test8b: near-miss check: index 0 matches ratio'
+    assert misses[0][1] == 6, 'test8b: near-miss check: index 0 matches colIndex'
+    assert misses[0][2] == 6, 'test8b: near-miss check: index 0 matches rowIndex'
+    assert misses[1][0] == 0.7, 'test8b: near-miss check: index 1 matches ratio'
+    assert misses[1][1] == 8, 'test8b: near-miss check: index 1 matches colIndex'
+    assert misses[1][2] == 6, 'test8b: near-miss check: index 1 matches rowIndex'
     
     # test 9 - put it all together
     markup1 = "This is the beginning link: <a href=#top>Top</a>: when in doubt, use this test <a href=http://test/test/test.com>if</a> you are <a href='http://external/comparing'>comparing lines</a> as sequences of characters, and don't want to <a href=#sync>synch</a> up on blanks or hard <span id='sync'>tabs</span>. The optional arguments a and b are sequences to be compared; both <tt>default</tt> to empty strings. The elements of both sequences must be hashable. The optional argument autojunk can be used to disable the automatic <a href=#not_matched>junk heuristic</a>. New in version 2.7.1: The <a href='http://test/test/test.com'>autojunk</a> parameter.."
@@ -1155,8 +1182,9 @@ def StartBaselineProcessorWithMarkupText(text, mem, comm):
         inputParamsArray.append((baselineDoc.links[ownIndex].words, srcIndex, srcNonIndexed, srcLinksLen, ownIndex, ownIndex % onePercent + 1 == onePercent, mem))
     baselineMatches = p.map(StartBuildMatchResult, inputParamsArray)
     p.close()
-    resolveMatchResultConflicts(baselineMatches, srcLinksLen)
+    nearMisses = resolveMatchResultConflicts(baselineMatches)
     mem.baselineMatches = baselineMatches
+    mem.nearMisses = nearMisses
     mem.ownLinksLen = len(baselineDoc.links)
     comm.send('apply:baseline matches')
     mem.totalMatchCount = applyOwnMatchArray(baselineMatches, baselineDoc.links)
@@ -1185,7 +1213,7 @@ def StartSourceWithMarkupText(text, mem, comm):
     mem.srcLinksLen = len(sourceDoc.links)
     comm.send('start:baseline matching')
     assert comm.recv() == 'apply:baseline matches', 'Expected apply:baseline matches signal from other process...'
-    totalMatchCount = applyOtherMatchArray(mem.baselineMatches, sourceDoc.links)
+    totalMatchCount = applyOtherMatchArray(mem.baselineMatches, mem.nearMisses, sourceDoc.links)
     srcSkippedTotal = preCheck4Correct(sourceDoc)[0]
     assert comm.recv() == 'start:correctness check', 'Expected start:correctness check signal from other process...'
     srcCorrectTotal, mem.externalCorrectResults, mem.wordCorrectResults = check4Correct(sourceDoc, mem.checkExternals, mem.checkWords)
