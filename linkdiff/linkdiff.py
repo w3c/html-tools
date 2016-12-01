@@ -14,7 +14,6 @@ import math
 from multiprocessing import Process, Pipe, Pool, Manager
 import re
 import multiprocessing
-#from operator import itemgetter
 
 # Subclass the parser to build the DOM described below. Since the
 # DOM will only be used for tracking links and what they link to, the
@@ -179,19 +178,21 @@ class LinkElement(Element):
         self.matchIndex = -1
         self.matchRatio = 0.0
         self.correctRatio = 0.0
-    def __str__(self):
+    def __str__(self): # called for str(link)
         return '{"index":' + str(self.index) + ',"matchIndex":' + str(self.matchIndex) + ',"matchRatio":' + str(self.matchRatio)[:5] + ',"correctRatio":' + str(self.correctRatio)[:5] + ',"lineNo":' + str(self.lineNo) + ',"status":"' + self.status + '","href":"' + self.href.encode('ascii', 'xmlcharrefreplace') + '"' + (',"id":"' + self.id + '"' if self.id != '' else '') + '}'
-    def __dict__(self):
+    def __getstate__(self): # called by pickle protocol (see when mem.baseAllLinks is set)
         return {'index': self.index, 'matchIndex': self.matchIndex, 'matchRatio': self.matchRatio, 'correctRatio': self.correctRatio, 'lineNo': self.lineNo, 'status': self.status, 'href': self.href, 'id': self.id}
 
-def parseTextToDocument(htmlText, statusText):
+def parseTextToDocument(htmlText, statusText = None):
     parser = LinkAndTextHTMLParser()
-    statusUpdate(statusText)
+    if statusText != None:
+        statusUpdate(statusText)
     return parser.parse(htmlText)
 
-# index is a hashtable of "name" <-> [0:count,1-n:list of matching link indexes]
-def buildIndex(doc, statusText):
-    statusUpdate(statusText)
+# index is a hashtable of "name" <-> [n:matching link index, n+1:number of occurances of "name" at the matching index, ...]
+def buildIndex(doc, statusText = None):
+    if statusText != None:
+        statusUpdate(statusText)
     doc.index = {}
     doc.unIndexed = [] # because they're too common to be useful...
     tooCommonThreshold = len(doc.links)
@@ -201,24 +202,35 @@ def buildIndex(doc, statusText):
     for linkIndex in xrange(len(doc.links)):
         link = doc.links[linkIndex]
         wordsList = getDirectionalContextualWords(link, True) + getDirectionalContextualWords(link, False)
-        link.words = wordsList
+        # Group duplicate word entries in the wordsList so that each word has an occurence count
+        uniqueWords = {}
         for word in wordsList:
-            if word in doc.unIndexed:
-                continue
-            if word in doc.index:
-                doc.index[word][0] += 1 # bump the count
-                doc.index[word].append(linkIndex)
-                if doc.index[word][0] > tooCommonThreshold:
-                    doc.unIndexed.append(word)
-                    del doc.index[word] # remove it from the index
+            if word in uniqueWords:
+                uniqueWords[word] += 1
             else:
-                doc.index[word] = [1, linkIndex]
-    #print "Too Common: " + str(len(doc.unIndexed)) + " -- " + str(doc.unIndexed)
-    #print "Total unique words: " + str(len(doc.index.keys()))
-    #ave = 0
-    #for key in doc.index.keys():
-    #    ave += doc.index[key][0]
-    #print "Average occurances/word: " + str(ave/float(len(doc.index.keys())))
+                uniqueWords[word] = 1
+        link.words = []           
+        for uniqueWord in uniqueWords:
+            # Assemble local saved words into a structure similar to the index: ['word', occurence count, ...]        
+            link.words.append(uniqueWord)
+            link.words.append(uniqueWords[uniqueWord])
+            # Build the index
+            if uniqueWord in doc.unIndexed:
+                continue # too common to be included.
+            if uniqueWord in doc.index:
+                doc.index[uniqueWord].append(linkIndex)
+                doc.index[uniqueWord].append(uniqueWords[uniqueWord])
+                if len(doc.index[uniqueWord]) / 2 > tooCommonThreshold:
+                    doc.unIndexed.append(uniqueWord)
+                    del doc.index[uniqueWord] # remove it from the index
+            else:
+                doc.index[uniqueWord] = [linkIndex, uniqueWords[uniqueWord]]
+    doc.statsWordsTooCommonCount = len(doc.unIndexed)
+    doc.statsUniqueWordCount = len(doc.index)
+    ave = 0
+    for key in doc.index:
+        ave += (len(doc.index[key]) / 2)
+    doc.statsAverageCountPerWord = ave / float(len(doc.index))
 
 # Process entry point
 # For a given list of words, find the matching (set of) index(es) in the provided index.
@@ -228,17 +240,20 @@ def buildIndex(doc, statusText):
 def StartBuildMatchResult(tuple):
     wordList, otherIndex, otherNonIndexed, otherLinksLen, wordListOriginIndex, renderProgress, mem = tuple
     setGlobals(mem)
-    possibleMatches = len(wordList)
+    possibleMatches = 0
+    for i in xrange(1, len(wordList), 2): #sum the [initial] total number of possible matches (the count of all non-unique words in the list)
+        possibleMatches += wordList[i]
     allLinks = [0] * otherLinksLen # creates an array initialized with zeros
-    for word in wordList: # typically 20 such words...
-        # skip any words from the list that meet the "too common" threshold
-        if word in otherNonIndexed:
-            possibleMatches -= 1
+    for i in xrange(0, len(wordList), 2):
+        word = wordList[i]
+        if word in otherNonIndexed:  # skip and reduce the ratio threshold for any too-common words
+            possibleMatches -= wordList[i+1] # change can be merged into this loop because each word is unique
             continue
         if word in otherIndex:
-            linkIndexArray = otherIndex[word] # around 250 on average (could be much smaller or a lot bigger)
-            for i in xrange(1, linkIndexArray[0] + 1): # Skip first entry, which is the length
-                allLinks[linkIndexArray[i]] += 1 # matching link incremented!
+            linkIndexes = otherIndex[word]  # around 250 on average (could be much smaller or a lot bigger)
+            for n in xrange(0, len(linkIndexes), 2):
+                allLinks[ linkIndexes[n] ] += min(wordList[i+1], linkIndexes[n+1]) # when dups are involved, only select from what is available at each link
+                assert allLinks[linkIndexes[n]] <= possibleMatches, "There cannot be a value greater than possible matches (word: " + word + ", read: " + str(allLinks[linkIndexes[n]]) + ", max: " + str(possibleMatches) + ") wordlist: " + str(wordList)
     if possibleMatches == 0:
         return [(0.0, -1, -1)]
     matchValueThreshold = int(math.ceil(possibleMatches * MATCH_RATIO_THRESHOLD))
@@ -268,41 +283,49 @@ def StartBuildMatchResult(tuple):
     # Return the list of tuples (ratio, bestMatchingIndex)
     return candidates
 
-# Performs the following: 1) in-place modifies the provided matchResultsArray to contain the result 
+# Performs the following: 1) in-place modifies the provided matchResultsArray to contain the result
 # set for the "own" links collection, (resolved hits and misses combined and in the cannonical order
-# AND 2) returns a sparce list for "near-matches" (the links potentially matching--with qualifying 
+# AND 2) returns a sparce list for "near-matches" (the links potentially matching--with qualifying
 # ratios--but were not selected as the "official" match per this algorithm). The single tuple result
-# will be the tuple with the highest ratio if there were multiples. 
+# will be the tuple with the highest ratio if there were multiples.
 # That only leaves the set of links which were not matched at all in the "other" set un-analyzed
 # (matched and "near-matched" are handled here) which will have a 0.0 ratio--which is probably not
-# true. To get the best-match ratio for these unmatched links, the StartBuildMatchResult algorithm 
-# must be run for each of them (with no expected "new" matches--just refined un-matched best-case 
+# true. To get the best-match ratio for these unmatched links, the StartBuildMatchResult algorithm
+# must be run for each of them (with no expected "new" matches--just refined un-matched best-case
 # ratios).
 def resolveMatchResultConflicts(matchResultsArray):
     # These two maps are used for eliminating match combinations w/out affecting the original array
     rowResults = {}
-    colResults = {} 
+    colResults = {}
     matchResultsArrayLen = len(matchResultsArray)
+    over50Count = 0 # Match resolving can be expensive. If a row has over 50 matches, that's a sure sign of potential slowness for the whole algorithm.
+    statusUpdate('\nResolving match conflicts...(this may take a few minutes)')
     for i in xrange(matchResultsArrayLen):
         if matchResultsArray[i][0][2] == -1:
             matchResultsArray[i] = matchResultsArray[i][0]
         else:
             rowResults[i] = matchResultsArray[i]
+            if len(matchResultsArray[i]) >= 50:
+                over50Count += 1
             for matchTuple in matchResultsArray[i]:
                 if matchTuple[1] not in colResults:
                     colResults[matchTuple[1]] = []
                 colResults[matchTuple[1]].append(matchTuple)
-    statusUpdate('\nResolving match conflicts...(this may take a few minutes)')
+    if matchResultsArrayLen > 1000 and over50Count > (matchResultsArrayLen / 10): # show this at >10% of all links
+        statusUpdate('**Note** ' + str(int(float(over50Count) / matchResultsArrayLen * 100)) + '% of all links have more than 50 match conflicts each.')
+        statusUpdate('  Consider increasing the match ratio to reduce match conflicts (via the -ratio command line flag).')
     onePercent = matchResultsArrayLen / 100 if matchResultsArrayLen > 1000 else matchResultsArrayLen + 1
     i = 0
     count = 0
     percent = 0
     while i < matchResultsArrayLen:
-        # resolveMatchRow may not resolve the row it's on, but it is guaranteed to resolve one row somewhere.
-        # use this to better track progress.
-        if resolveMatchRow(i, rowResults, colResults, matchResultsArray):
+        if not i in rowResults: # Resolved in a previous iteration--move along without trying to resolve
             i += 1
-        count += 1 # regardless
+            continue
+        # resolveMatchRow may not resolve the row it's on, but it is guaranteed to resolve one row somewhere.
+        if resolveMatchRow(i, rowResults, colResults, matchResultsArray):
+            i += 1 # resolved the row it was on. Move to next row.
+        count += 1 # spent time resolving a row.
         if count % onePercent + 1 == onePercent:
             percent += 1
             statusUpdateInline("resolving... " + str(percent) + "%")
@@ -321,11 +344,9 @@ def resolveMatchResultConflicts(matchResultsArray):
 # Returns true if the designated row was resolved; false if some other row was resolved.
 # in-place modifies both rowDict and colDict when a match occurs, both the related row/col dictionary
 # entry are removed; for rowDict this helps with later skipping an already-resolved row when iterating
-# the rowIndexes; for colDict this excludes columns from being considered for "near matches" after 
+# the rowIndexes; for colDict this excludes columns from being considered for "near matches" after
 # all rows have been resolved.
 def resolveMatchRow(rowIndex, rowDict, colDict, finalMatchArray):
-    if not rowIndex in rowDict:
-        return True # Resolved in a previous iteration.
     rowLen = len(rowDict[rowIndex])
     assert rowLen != 0, 'If there is a row, it must have more than zero elements...'
     colConstrained = False
@@ -379,18 +400,23 @@ def resolveMatchRow(rowIndex, rowDict, colDict, finalMatchArray):
             del rowDict[rovingRowIndex]
         del colDict[colIndex]
         return rowIndex == biggestIndex
-        
+
 def resolveNonConstrainedMatches(anchorRowIndex, rowDict, colDict, finalMatchArray):
-    highestRatio = -0.1
-    highestRowDict = highestColDict = None
-    # build constraining range
+    bestMatches = {}
+    bestMatches["highestRatio"] = -0.1
+    bestMatches["highestRowDict"] = bestMatches["highestColDict"] = None
+    # build constraining range + visit/test first row
     constrainingColRange = {}
+    anchorColumns = []
     for tuple in rowDict[anchorRowIndex]:
         constrainingColRange[tuple[1]] = True
+        anchorColumns.append(tuple[1])
+        updateBestMatches(tuple, bestMatches)
     visitedRow = {}
-    for colIndex in constrainingColRange.keys(): # perf note: the 'in' expression is only evaluated once
+    for colIndex in anchorColumns: # perf note: the 'in' expression is only evaluated once
         # traverse each column
-        for colTuple in colDict[colIndex]:
+        for colIterator in xrange(1, len(colDict[colIndex])): # skips the anchor row (handled earlier)
+            colTuple = colDict[colIndex][colIterator]
             # Get the row of this column entry and iterate (if the row hasn't been visited)
             if colTuple[2] in visitedRow:
                 continue # Skip this row
@@ -400,30 +426,21 @@ def resolveNonConstrainedMatches(anchorRowIndex, rowDict, colDict, finalMatchArr
             # objects if they found a (legitimate) higher value before stumbling on the out-of-range
             # option.
             for preScanRowTuple in rowDict[colTuple[2]]:
-                if preScanRowTuple[0] >= highestRatio and not preScanRowTuple[1] in constrainingColRange:
+                if preScanRowTuple[0] >= bestMatches["highestRatio"] and not preScanRowTuple[1] in constrainingColRange:
                     break # invalidating this entire row
             else: # loop-completed w/out breaking, row is safe.
                 for rowTuple in rowDict[colTuple[2]]:
-                    # It's in the constraining range...
-                    if rowTuple[0] > highestRatio:
-                        highestRowDict = { rowTuple[2]: [rowTuple] }
-                        highestColDict = { rowTuple[1]: [rowTuple] }
-                        highestRatio = rowTuple[0]
-                    elif rowTuple[0] == highestRatio:
-                        if rowTuple[2] not in highestRowDict:
-                            highestRowDict[rowTuple[2]] = []
-                        if rowTuple[1] not in highestColDict:
-                            highestColDict[rowTuple[1]] = []
-                        highestRowDict[rowTuple[2]].append(rowTuple)
-                        highestColDict[rowTuple[1]].append(rowTuple)
+                    updateBestMatches(rowTuple, bestMatches)
     # This has a stable ascending sort for ordinal keys, so regardless of the order they were added,
     # they will be processed in the correct order.
-    rowKeys = highestRowDict.keys() 
-    colKeys = highestColDict.keys()
-    if len(rowKeys) == 1 and len(colKeys) == 1:
-        selectAndRemoveFromNonConstrainedMatches(rowKeys[0], colKeys[0], rowDict, colDict, finalMatchArray)
-        return anchorRowIndex == rowKeys[0]
+    highestRowDict = bestMatches["highestRowDict"]
+    highestColDict = bestMatches["highestColDict"]
+    if len(highestRowDict) == 1 and len(highestColDict) == 1:
+        rowIndex = highestRowDict.keys()[0]
+        selectAndRemoveFromNonConstrainedMatches(rowIndex, highestColDict.keys()[0], rowDict, colDict, finalMatchArray)
+        return anchorRowIndex == rowIndex
     # check each entry, row-by-row for only entry in its row or col. If so, select it and quit.
+    rowKeys = highestRowDict.keys()
     rowKeys.sort()
     for rowKey in rowKeys:
         for tuple in highestRowDict[rowKey]:
@@ -434,6 +451,21 @@ def resolveNonConstrainedMatches(anchorRowIndex, rowDict, colDict, finalMatchArr
     tuple = highestRowDict[rowKeys[0]][0]
     selectAndRemoveFromNonConstrainedMatches(tuple[2], tuple[1], rowDict, colDict, finalMatchArray)
     return anchorRowIndex == tuple[2]
+
+def updateBestMatches(tuple, best):
+    if tuple[0] > best["highestRatio"]:
+        best["highestRowDict"] = {}
+        best["highestRowDict"][tuple[2]] = [tuple]
+        best["highestColDict"] = {}
+        best["highestColDict"][tuple[1]] = [tuple]
+        best["highestRatio"] = tuple[0]
+    elif tuple[0] == best["highestRatio"]:
+        if tuple[2] not in best["highestRowDict"]:
+            best["highestRowDict"][tuple[2]] = []
+        if tuple[1] not in best["highestColDict"]:
+            best["highestColDict"][tuple[1]] = []
+        best["highestRowDict"][tuple[2]].append(tuple)
+        best["highestColDict"][tuple[1]].append(tuple)
 
 def selectAndRemoveFromNonConstrainedMatches(rowIndex, colIndex, rowDict, colDict, finalMatchArray):
     selectedRow = rowDict[rowIndex]
@@ -460,7 +492,7 @@ def selectAndRemoveFromNonConstrainedMatches(rowIndex, colIndex, rowDict, colDic
                         del rowDict[row[i][2]]
                     else:
                         del row[i]
-                    break                 
+                    break
     del colDict[colIndex] # prevents searching this column for "near matches" later
     del rowDict[rowIndex]
 
@@ -591,15 +623,12 @@ def applyCorrectnessResults(doc, externalCorrectList, wordCorrectList):
         link.correctRatio = tuple[1]
     return len(externalCorrectList) + len(wordCorrectList)
 
-HALF_WORD_COUNT = 10
-HALF_CONTEXT_MIN = 110 # Tuned using (W3C HTML spec text)
-
 # get HALF_WORD_COUNT words (or less if only less is available) in the indicated direction
 def getDirectionalContextualWords(elem, isBeforeText):
     textCount = HALF_CONTEXT_MIN # should be enough, but if not, grow this variable.
     wordCount = 0
     #since lead or tail text may cut off a word (in the middle of a whole word), ask for one more word than needed and drop the potential half-word)
-    while wordCount < HALF_WORD_COUNT + 1: # Should loop only once in typical cases...
+    while wordCount < HALF_WORD_COUNT: # Should loop only once in typical cases...
         text, noMoreTextAvailable = getDirectionalContextualText(elem, isBeforeText, textCount)
         splitArray = re.split('\\W+', text)
         headPos = 0
@@ -767,7 +796,7 @@ def runTests(mem):
     # 6 |           d D d              ()
     # 7 |         d,  d   d,       d,      d,          --      {} <-- disqualified, not in constraining range
     # 8 |     B
-    
+
     # A - Row constrained
     # B - Col constrained
     # C - Row + Col constrained
@@ -816,7 +845,7 @@ def runTests(mem):
     assert misses[1][0] == 0.75, 'test8: near-miss check: index 1 matches ratio'
     assert misses[1][1] == 7, 'test8: near-miss check: index 1 matches colIndex'
     assert misses[1][2] == 4, 'test8: near-miss check: index 1 matches rowIndex'
-    
+
     # test 8b - ignore irrelevant rows/cols
     array = [
         [(0.7, 1, 0), (0.7, 2, 0)],                             #0
@@ -839,16 +868,16 @@ def runTests(mem):
     # 2 |     a                    a                    a                a
     # 3 |     a,A-          =>     a,A-          =>     --{}
     # 4 |   a,a,A-a,a,           a,a,A-a,a,           ----{}----       --   <-- all col 1 entries removed (like this one)
-    # 5 |       a^  A^a^a^           ()  ()()()   
+    # 5 |       a^  A^a^a^           ()  ()()()
     # 6 |             a^a^a^               ()()()
     # 7 |     a                    a                    a                a
-    # 8 | A-a,                 A-a,                 {}-- 
-    # 9 | A^                   ()             
-    
+    # 8 | A-a,                 A-a,                 {}--
+    # 9 | A^                   ()
+
     # target row (0) sets up a constraining range (the only possible matches for this row!)
     # A^ and a^ - dropped/skipped/never considered because they are not in a row of a column in the constraining range.
     # A- best match by best ratio, but disqualified because it's outside of the constraining range (it isn't beeing fully considered in context because not all related row/cols are being considered in this pass)
-    # a, next-best options dropped because they are in a disqualified row    
+    # a, next-best options dropped because they are in a disqualified row
     assert array[0][0] == 0.7, 'test8b: index 0 matches ratio'
     assert array[0][1] == 1, 'test8b: index 0 matches other'
     assert array[0][2] == 0, 'test8b: index 0 matches index'
@@ -858,11 +887,11 @@ def runTests(mem):
     # 2 |     a                    a                    a                a   <-- no result for this row (last column eliminated)
     # 3 |     a,A-          =>     a,A-          =>     --{}
     # 4 |     a,A-a,a,             a,A-a,a,             --{}----
-    # 5 |       a^  A^a^a^           ()  ()()()   
+    # 5 |       a^  A^a^a^           ()  ()()()
     # 6 |             a^a^a^               ()()()
     # 7 |     a                    a                    a                a   <-- no result for this row (last column eliminated)
-    # 8 | A-                   ()                     
-    # 9 | A^                   ()             
+    # 8 | A-                   ()
+    # 9 | A^                   ()
     assert array[1][0] == 0.7, 'test8b: index 1 matches ratio'
     assert array[1][1] == 2, 'test8b: index 1 matches other'
     assert array[1][2] == 1, 'test8b: index 1 matches index'
@@ -878,39 +907,39 @@ def runTests(mem):
     # 4 |       A a,a,               A a,a,           A a,a,           A a,a,
     # 5 |       a   A-a a            a   A-a a        --  {}----
     # 6 |             a^a^a^               ()()()
-    # 8 | A^                   ()                     
-    # 9 | A^                   ()             
+    # 8 | A^                   ()
+    # 9 | A^                   ()
     assert array[3][0] == 0.9, 'test8b: index 3 matches ratio'
     assert array[3][1] == 3, 'test8b: index 3 matches other'
     assert array[3][2] == 3, 'test8b: index 3 matches index'
-    #     0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6 7 8    ..4 5 6 7.. 
+    #     0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6 7 8    ..4 5 6 7..
     #   +-------------------  -------------------  -------------
-    # 4 |         a,a,                 a,a,           a,a,      
+    # 4 |         a,a,                 a,a,           a,a,
     # 5 |           A a a                A a a          ()a a   <-- only biggest match available!
     # 6 |             a^a^a^               ()()()
-    # 8 | A^                   ()                     
-    # 9 | A^                   ()             
+    # 8 | A^                   ()
+    # 9 | A^                   ()
     assert array[5][0] == 0.9, 'test8b: index 5 matches ratio'
     assert array[5][1] == 5, 'test8b: index 5 matches other'
     assert array[5][2] == 5, 'test8b: index 5 matches index'
-    #     0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6 7 8    ..4 5 6 7.. 
+    #     0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6 7 8    ..4 5 6 7..
     #   +-------------------  -------------------  -------------
-    # 4 |         a,                   a,             ()  <-- only option left!        
+    # 4 |         a,                   a,             ()  <-- only option left!
     # 6 |             a^a^a^               ()()()
-    # 8 | A^                   ()                     
-    # 9 | A^                   ()             
+    # 8 | A^                   ()
+    # 9 | A^                   ()
     assert array[4][0] == 0.8, 'test8b: index 4 matches ratio'
     assert array[4][1] == 4, 'test8b: index 4 matches other'
     assert array[4][2] == 4, 'test8b: index 4 matches index'
-    #     0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6 7 8    ..6 7 8.. 
+    #     0 1 2 3 4 5 6 7 8    0 1 2 3 4 5 6 7 8    ..6 7 8..
     #   +-------------------  -------------------  -----------
     # 6 |             a a,a                a a,a        ()  <- highest matching result
-    # 8 | A^                   ()                     
-    # 9 | A^                   ()             
+    # 8 | A^                   ()
+    # 9 | A^                   ()
     assert array[6][0] == 0.8, 'test8b: index 6 matches ratio'
     assert array[6][1] == 7, 'test8b: index 6 matches other'
     assert array[6][2] == 6, 'test8b: index 6 matches index'
-    #     0        0 
+    #     0        0
     #   +----     ----
     # 8 | A    =>  ()  <- column constrained
     # 9 | A        A   <- not matched
@@ -928,7 +957,7 @@ def runTests(mem):
     assert misses[1][0] == 0.7, 'test8b: near-miss check: index 1 matches ratio'
     assert misses[1][1] == 8, 'test8b: near-miss check: index 1 matches colIndex'
     assert misses[1][2] == 6, 'test8b: near-miss check: index 1 matches rowIndex'
-    
+
     # test 9 - put it all together
     markup1 = "This is the beginning link: <a href=#top>Top</a>: when in doubt, use this test <a href=http://test/test/test.com>if</a> you are <a href='http://external/comparing'>comparing lines</a> as sequences of characters, and don't want to <a href=#sync>synch</a> up on blanks or hard <span id='sync'>tabs</span>. The optional arguments a and b are sequences to be compared; both <tt>default</tt> to empty strings. The elements of both sequences must be hashable. The optional argument autojunk can be used to disable the automatic <a href=#not_matched>junk heuristic</a>. New in version 2.7.1: The <a href='http://test/test/test.com'>autojunk</a> parameter.."
     markup2 = "This is the beginning link: <a href=#top>Top</a>: when in doubt, use this test <a href=http://test/test/test.com>if</a> you are <a href='http://external/comparing'>comparing a line</a> as sequences of characters, and don't want to <a href=#sync>synch</a> up on <i>blanks</i> or <b>hard <span id='sync'>tabs</span></b>. The optional arguments a and b are sequences to be compared; both will <tt>default</tt> to empty strings. The elements of both sequences must be hashable--the optional argument autoskip may stop the automatic skipping behavior for the <a href=#not_matched>stop algorithm</a>. With the addition of a new stop algorithm in this document, you may now see that things aren't quite <a href='http://test/test/test.com'>the same</a>.."
@@ -976,11 +1005,32 @@ def runTests(mem):
 
     markup2 =  "One of the common, difficult to figure-out problems in the current HTML spec is\n"
     markup2 += "whether links are 'correct'. Not 'correct' as in syntax or as opposite to broken\n"
+    #                                                              [(0)[(1)
     markup2 += "links, but rather that the link in question goes to the semantically correct place\n"
     markup2 += "in the spec or other linked <a href='http://external/place2'>spec</a>. "
     markup2 += "<a href=#matched>Correctness</a>, in this sense, can only be determined\n"
+    #          (0)]      (1)]
     markup2 += "by comparing the links to a canonical 'correct' source. In the case of the W3C HTML\n"
     markup2 += 'spec, the source used for determining correctness is the WHATWG <span id=matched>version</span> of the spec.'
+    # words: 
+    #  'the' x2 for link 0, x1 for link 1
+    #  'semantically' x1
+    #  'correct' x1
+    #  'place' x1
+    #  'in' x2
+    #  'spec' x2
+    #  'or' x1
+    #  'other' x1
+    #  'linked' x1
+    #  'correctness' x1
+    #  'this' x1
+    #  'sense' x1
+    #  'can' x1
+    #  'only' x1
+    #  'be' x1
+    #  'determined' x1
+    #  'by' x1
+    #  'comparing' -0- in link 0, x1 in link 1
     res = diffLinksWithMarkupText(markup1, markup2, mem)
     #dumpJSONResults(res)
     assert len(res.baseAllLinks) == 2, 'test10: parsing validation-- 2 links in markup1'
@@ -1019,7 +1069,7 @@ def runTests(mem):
     markup1 += "Correctness, in this sense, can only be determined by comparing \n"
     markup1 += "the links to a canonical 'correct' source. In the case of the W3C HTML spec, the \n"
     markup1 += "source used for determining correctness is the WHATWG version of the spec."
-    doc = parseTextToDocument(markup1, "")
+    doc = parseTextToDocument(markup1)
     #dumpDocument(doc, True)
     resultWordList = getDirectionalContextualWords(doc.links[0], True)
     assert len(resultWordList) == HALF_WORD_COUNT, "test12: getDirectionalContextualWords returns "+str(HALF_WORD_COUNT)+" items from front of link"
@@ -1031,18 +1081,48 @@ def runTests(mem):
     testList = ['spec', 'correctness', 'in', 'this', 'sense', 'can', 'only', 'be', 'determined', 'by']
     for i in xrange(len(testList)):
         assert testList[i] == resultWordList[i], "test12: validating expected words after link"
-    buildIndex(doc, "")
-    assert len(doc.index.keys()) == 14, "test12: total number of unique words indexed is 14 (others were in the too common list"
-    testList = ['correct', 'be', 'linked', 'correctness', 'by', 'this', 'only', 'other', 'place', 'can', 'sense', 'semantically', 'determined', 'or']
-    for word in doc.index.keys():
-        assert word in testList, "test12: only expected words are in the index"
-        assert doc.index[word][0] == 1, "test12: indexed words all have an initial occurance count of 1"
-        assert doc.index[word][1] == 0, "test12: words are all found in first link"
-        del testList[testList.index(word)]
+    buildIndex(doc)
+    assert len(doc.index) == 17, "test12: total number of unique words indexed is 17"
+    testList = ['be',1, 'or',1, 'this',1, 'the',2, 'in',2, 'correctness',1, 'spec',2, 'by',1, 'only',1, 'other',1, 'place',1, 'can',1, 'sense',1, 'correct',1, 'semantically',1, 'determined',1, 'linked',1]
+    for i in xrange(0, len(testList), 2):
+        assert testList[i] in doc.index, "test12: only expected words are in the index"
+        indexlist = doc.index[testList[i]]
+        assert indexlist[0] == 0, "test12: all indexed words belong to link 0"
+        assert indexlist[1] == testList[i+1], "test12: word counts for each indexed entry are correct"
+    
+    # test 13 - duplicate words don't cause match overflow
+    markup1 =  "aa aa aa aa aa aa aa aa aa aa <a href='http://external'>aa</a> aa aa aa aa aa aa aa aa aa\n"
+    markup1 += "aa aa aa aa aa aa aa aa aa aa <a href='http://place'>aa</a> aa aa aa aa aa aa aa aa aa"
+    res = diffLinksWithMarkupText(markup1, markup1, mem)
+    #dumpJSONResults(res)
+    assert len(res.baseAllLinks) == 2, 'test13: parsing validation-- 2 links in markup1'
+    assert res.baseAllLinks[0].status == 'correct-external', 'test13: link matching validation: external link is correctly matched'
+    assert res.baseAllLinks[0].matchIndex == 0, 'test13: link matching validation: matched at 0'
+    assert res.srcAllLinks[res.baseAllLinks[0].matchIndex].href == 'http://external', 'test13: correct index (0) matched in source doc'
+    assert res.baseAllLinks[0].matchRatio > 0.99, 'test13: link matching validation: Ratio is 1.0'
+    assert res.baseAllLinks[0].correctRatio == 1.0, 'test13: link matching validation: value is 1.0'
+    assert res.baseAllLinks[0].lineNo == 1, 'test13: line number is correct (expected: 1)'
+    assert res.baseAllLinks[1].status == 'correct-external', 'test13: link matching validation: external link is correctly matched'
+    assert res.baseAllLinks[1].matchIndex == 1, 'test13: link matching validation: matched at 1'
+    assert res.srcAllLinks[res.baseAllLinks[1].matchIndex].href == 'http://place', 'test13: correct link (1) matched in source doc'
+    assert res.baseAllLinks[1].matchRatio > 0.99, 'test13: link matching validation: Ratio is 1.0'
+    assert res.baseAllLinks[1].correctRatio == 1.0, 'test13: link matching validation: correct--1.0 ratio'
+    assert res.baseAllLinks[1].lineNo == 2, 'test13: line number is correct (expected: 2)'
+    
     print 'All tests passed'
 
 # Input processing
 # =====================================================
+
+def cmdSimpleHelp():
+    print "Usage:"
+    print "  linkdiff [flags]  <baseline html file>  <source html file>"
+    print "Common Flags:"
+    print "  -h                        Extended help and additional flag descriptions"
+    print "  -v                        Verbose output (nice to know what's going on)"
+    print "  -statsonly                Skips outputting match results for all links"
+    print "  -ignorelist <json file>   List of URLs to skip when matching"
+    print "  -ratio [value 0.0 - 1.0]  Adjust the threshold for what is considered a match"
 
 def cmdhelp():
     print "linkdiff - A diffing tool for HTML hyperlink semantic validation"
@@ -1070,7 +1150,7 @@ def cmdhelp():
     print "      both specs, and that the hyperlink's targets are in the same relative place. A low"
     print "      ratio (e.g., 0.25 or 25%) is more permissive in that only 25% of the relative surrounding"
     print "      content must be the same to be considered a match. A higher ratio (e.g., 0.9 or 90%) is"
-    print "      more strict. The default (if the flag is not supplied) is 0.7 or 70%."
+    print "      more strict. The default (if the flag is not supplied) is 0.8 or 80%."
     print ""
     print "  -ignorelist <ignorelist_file>"
     print ""
@@ -1106,6 +1186,17 @@ def cmdhelp():
     print "      documents). The second example overrides the default (number of cores avilable on the"
     print "      OS) to use 16 processes for link matching."
     print ""
+    print "  -contextwords <value greater than 0>"
+    print ""
+    print "    Example: linkdiff -contextwords 15 baseline.html source.html"
+    print ""
+    print "      It is not recommended to override this value for typical use. This controls the"
+    print "      upper-limit of context words gathered when matching links. The default value is 10."
+    print "      (10 words are gathered before and after the opening link tag for a total of 20 words,"
+    print "      or less if there aren't enough words to fill the limit.) Increase the default value to"
+    print "      improve the chances of fewer duplicate matches--however this may dramatically"
+    print "      increase link matching elapsed time as a result."
+    print ""
     print "  -runtests"
     print ""
     print "    Example: linkdiff -runtests"
@@ -1119,6 +1210,8 @@ MATCH_RATIO_THRESHOLD = None
 IGNORE_LIST = None
 CPU_COUNT = None
 PROCESS_ERROR = None
+HALF_WORD_COUNT = None
+HALF_CONTEXT_MIN = 110 # Tuned using (W3C HTML spec text) -- NOT CONFIGURABLE
 
 def getSharedMemory():
     processManager = Manager()
@@ -1131,12 +1224,14 @@ def setGlobals(mem):
     global SHOW_ALL_STATUS
     global PROCESS_ERROR
     global SHOW_STATUS
+    global HALF_WORD_COUNT
     SHOW_STATUS = mem.showStatus
     SHOW_ALL_STATUS = mem.showAllStats
     MATCH_RATIO_THRESHOLD = mem.ratio
     PROCESS_ERROR = mem.error
     IGNORE_LIST = mem.ignoreList
     CPU_COUNT = mem.cpuCount
+    HALF_WORD_COUNT = mem.halfContextWords
 
 def diffLinksWithFilename(baselineFilename, srcFilename, mem):
     forBaseline, forSource = Pipe()
@@ -1167,8 +1262,8 @@ def StartBaselineProcessorWithFileName(baseLineFilenameToLoad, mem, comm):
 
 def StartBaselineProcessorWithMarkupText(text, mem, comm):
     setGlobals(mem)
-    baselineDoc = parseTextToDocument(text, 'Parsing baseline document...')
-    buildIndex(baselineDoc, 'Indexing baseline document...')
+    baselineDoc = parseTextToDocument(text)
+    buildIndex(baselineDoc)
     assert comm.recv() == 'start:baseline matching', 'Expected start:baseline matching signal from other process...'
     statusUpdate('Matching baseline document links to source document...(this may take a few minutes)')
     srcIndex = mem.srcIndex
@@ -1180,19 +1275,20 @@ def StartBaselineProcessorWithMarkupText(text, mem, comm):
     onePercent = len(baselineDoc.links) / 100 if len(baselineDoc.links) > 1000 else len(baselineDoc.links) + 1
     for ownIndex in xrange(len(baselineDoc.links)):
         inputParamsArray.append((baselineDoc.links[ownIndex].words, srcIndex, srcNonIndexed, srcLinksLen, ownIndex, ownIndex % onePercent + 1 == onePercent, mem))
-    baselineMatches = p.map(StartBuildMatchResult, inputParamsArray)
+    baselineMatches = p.map(StartBuildMatchResult, inputParamsArray) # blocking until multi-process map completes
     p.close()
     nearMisses = resolveMatchResultConflicts(baselineMatches)
     mem.baselineMatches = baselineMatches
     mem.nearMisses = nearMisses
-    mem.ownLinksLen = len(baselineDoc.links)
+    mem.baseAllLinksLen = len(baselineDoc.links)
     comm.send('apply:baseline matches')
     mem.totalMatchCount = applyOwnMatchArray(baselineMatches, baselineDoc.links)
     mem.baseSkippedCount, mem.checkExternals, mem.checkWords = preCheck4Correct(baselineDoc, True)
     comm.send('start:correctness check')
     assert comm.recv() == 'apply:correctness results', 'Expected apply:correctness results signal from other process...'
     mem.totalCorrectCount = applyCorrectnessResults(baselineDoc, mem.externalCorrectResults, mem.wordCorrectResults)
-    mem.baseAllLinks = baselineDoc.links
+    if SHOW_ALL_STATUS:
+        mem.baseAllLinks = baselineDoc.links
     comm.send('done')
 
 def StartSourceWithFilename(sourceFilename, mem, comm):
@@ -1204,8 +1300,8 @@ def StartSourceWithFilename(sourceFilename, mem, comm):
 
 def StartSourceWithMarkupText(text, mem, comm):
     setGlobals(mem)
-    sourceDoc = parseTextToDocument(text, 'Parsing source document...')
-    buildIndex(sourceDoc, 'Indexing source document...')
+    sourceDoc = parseTextToDocument(text, 'Parallel parsing baseline and source documents...')
+    buildIndex(sourceDoc, 'Parallel indexing baseline and source documents...')
     if mem.error:
         return None
     mem.srcIndex = sourceDoc.index
@@ -1218,14 +1314,16 @@ def StartSourceWithMarkupText(text, mem, comm):
     assert comm.recv() == 'start:correctness check', 'Expected start:correctness check signal from other process...'
     srcCorrectTotal, mem.externalCorrectResults, mem.wordCorrectResults = check4Correct(sourceDoc, mem.checkExternals, mem.checkWords)
     comm.send('apply:correctness results')
-    resultOb = lambda : None
-    resultOb.srcAllLinks = sourceDoc.links
+    resultOb = lambda : None # a cheat to get an object with __dict__ ability.
+    resultOb.srcAllLinks = sourceDoc.links if SHOW_ALL_STATUS else None
     assert comm.recv() == 'done', 'Expected done signal from other process...'
     assert totalMatchCount == mem.totalMatchCount, 'Total matches should be identical between both processes'
+    resultOb.statBaseAllLinksLen = mem.baseAllLinksLen
+    resultOb.statSrcAllLinksLen = len(sourceDoc.links)
     resultOb.statTotalMatches = mem.totalMatchCount
-    resultOb.statPotentialMatches = min(mem.ownLinksLen, len(sourceDoc.links)) - max(mem.baseSkippedCount, srcSkippedTotal)
+    resultOb.statPotentialMatches = min(mem.baseAllLinksLen, len(sourceDoc.links)) - max(mem.baseSkippedCount, srcSkippedTotal)
     resultOb.statTotalCorrect = min(mem.totalCorrectCount, srcCorrectTotal)
-    resultOb.baseAllLinks = mem.baseAllLinks
+    resultOb.baseAllLinks = mem.baseAllLinks if SHOW_ALL_STATUS else None
     return resultOb
 
 def getFlagValue(flag):
@@ -1251,6 +1349,13 @@ def setProcesses(matchProcesses, mem):
     mem.cpuCount = matchProcesses
     statusUpdate('Will use ' + str(matchProcesses) + ' processes for matching')
 
+def setContextWords(halfWordCount, mem):
+    if halfWordCount == None:
+        return
+    halfWordCount = max(int(halfWordCount, 10), 1)
+    mem.halfContextWords = halfWordCount
+    statusUpdate('Will use ' + str(halfWordCount) + ' (x2) words for context matching')
+
 def setIgnoreList(newListFile, mem):
     localIgnoreList = {}
     if newListFile == None:
@@ -1275,11 +1380,14 @@ def processCmdParams():
     mem = getSharedMemory()
     mem.showStatus = False
     mem.showAllStats = True
-    mem.ratio = 0.7
+    mem.ratio = 0.8
     mem.error = False
     mem.cpuCount = multiprocessing.cpu_count()
     mem.ignoreList = {}
+    mem.halfContextWords = 10
     if len(sys.argv) == 1:
+        return cmdSimpleHelp()
+    if '-h' in sys.argv or '-H' in sys.argv or '/h' in sys.argv or '-?' in sys.argv or '/?' in sys.argv:
         return cmdhelp()
     if '-runtests' in sys.argv:
         return runTests(mem)
@@ -1304,12 +1412,14 @@ def processCmdParams():
     if '-parallelmatch' in sys.argv:
         setProcesses(getFlagValue('-parallelmatch'), mem)
         expectedArgs += 2
+    if '-contextwords' in sys.argv:
+        setContextWords(getFlagValue('-contextwords'), mem)
+        expectedArgs += 2
     if '-ignorelist' in sys.argv:
         setIgnoreList(getFlagValue('-ignorelist'), mem)
         expectedArgs += 2
     if len(sys.argv) < expectedArgs:
-        print 'Usage error: <baseline_doc.html> and <source_doc.html> parameters required.'
-        return
+        return cmdSimpleHelp()
     outStruct = diffLinksWithFilename(sys.argv[expectedArgs - 2], sys.argv[expectedArgs - 1], mem)
     if outStruct != None:
         dumpJSONResults(outStruct)
@@ -1324,19 +1434,18 @@ def dumpJSONResults(ob):
     print '  "potentialMatchingLinksSetSize": ' + str(ob.statPotentialMatches) + ','
     print '  "percentMatched": ' + str(float(ob.statTotalMatches) / float(ob.statPotentialMatches))[:5] + ','
     print '  "percentCorrect": ' + str(float(ob.statTotalCorrect) / float(ob.statPotentialMatches))[:5] + ','
-    dumpJSONDocResults(ob.srcAllLinks, 'sourceDoc', ob.statTotalMatches, True)
-    dumpJSONDocResults(ob.baseAllLinks, 'baselineDoc', ob.statTotalMatches, False)
+    dumpJSONDocResults(ob.statSrcAllLinksLen, ob.srcAllLinks, 'sourceDoc', ob.statTotalMatches, True)
+    dumpJSONDocResults(ob.statBaseAllLinksLen, ob.baseAllLinks, 'baselineDoc', ob.statTotalMatches, False)
     print '}'
 
-def dumpJSONDocResults(links, docName, numMatchingLinks, addTrailingComma):
+def dumpJSONDocResults(linksLen, links, docName, numMatchingLinks, addTrailingComma):
     print '  "' + docName + '": {'
-    linkTotal = len(links)
-    print '    "linksTotal": ' + str(linkTotal) + ','
-    print '    "nonMatchedTotal": ' + str(linkTotal - numMatchingLinks) + (',' if SHOW_ALL_STATUS else '')
+    print '    "linksTotal": ' + str(linksLen) + ','
+    print '    "nonMatchedTotal": ' + str(linksLen - numMatchingLinks) + (',' if SHOW_ALL_STATUS else '')
     if SHOW_ALL_STATUS:
         print '    "linkIndex": [ '
         for link in links:
-            print '      ' + str(link) + (',' if link.index < linkTotal - 1 else '')
+            print '      ' + str(link) + (',' if link.index < linksLen - 1 else '')
 
         print '    ]'
     print '  }' + (',' if addTrailingComma else '')
