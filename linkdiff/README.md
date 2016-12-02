@@ -47,22 +47,18 @@ The tool assumes that one link in the **baseline doc** should have a correspondi
 one) in the **source doc**. The link matching algorithm will attempt to match up every link in the
 baseline doc to exactly one match in the source doc and vice-versa. To avoid potential `O(n^2)`
 runtime for matching up links (especially where n is very large), the matching algorithm uses
-**relative link order proximity** to avoid checking a baseline link against all N links in the
-source doc and vice-versa. To keep things running quickly, each document (baseline and source) uses
-a sliding window of links that are considered candidates for matching. This sliding window consists
-of an ordered list of links in document order (the sliding window size is configurable). If a link
-is not matched within the proximity of the other document's sliding window, it is set aside as a
-non-matched candidate (along with the link matches attempted in the sliding window of the other
-document). The links that fall into this category at the end of the algorithm may be optionally
-re-paired with similar non-matched links from the other document if desired. The first matching link
-that meets the matching criteria is selected (no other links are tried).
+an index and selects the best candidate match from among the entire set of possible links. Multiple
+matches above the given threshold are possible, and all such matched are saved in the matching phase.
+Following the matching phase, duplicate matches are resolved taking all potential candidates (from 
+the baseline and source documents) into account and selecing the match with the highest ratio. In case
+of a tie, the first match in document order is chosen.
 
 Input
 =======
 
-In order to avoid hard-coding the percent-alignment necessary to constitute "sameness" the program
+In order to avoid hard-coding the percent-alignment necessary to constitute "sameness" the program may
 takes as input a floating-point number between 0 and 1, representing the percentage threshold to use
-when determining if two links are the same. Default value is **0.7** (70% similar).
+when determining if two links are the same. The default value is **0.8** (80% similar).
 
 An "ignore list" file may be provided for links, if encountered, to be skipped during processing.
 The file contents should be JSON formatted using the following syntax. The default value is to **not
