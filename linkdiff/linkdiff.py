@@ -230,7 +230,10 @@ def buildIndex(doc, statusText = None):
     ave = 0
     for key in doc.index:
         ave += (len(doc.index[key]) / 2)
-    doc.statsAverageCountPerWord = ave / float(len(doc.index))
+    if len(doc.index) == 0:
+        doc.statsAverageCountPerWord = 0.0
+    else:
+        doc.statsAverageCountPerWord = ave / float(len(doc.index))
 
 # Process entry point
 # For a given list of words, find the matching (set of) index(es) in the provided index.
@@ -610,7 +613,8 @@ def getRatio(ownWords, otherWords):
                 found += 1
                 otherWord['notused'] = False
                 break
-
+    if len(ownWords) == 0:
+        return 0.0
     return found / float(len(ownWords))
 
 def applyCorrectnessResults(doc, externalCorrectList, wordCorrectList):
@@ -1264,6 +1268,8 @@ def StartBaselineProcessorWithMarkupText(text, mem, comm):
     setGlobals(mem)
     baselineDoc = parseTextToDocument(text)
     buildIndex(baselineDoc)
+    mem.baseIndexWordsTooCommonCount = baselineDoc.statsWordsTooCommonCount
+    mem.baseIndexUniqueWordCount = baselineDoc.statsUniqueWordCount
     assert comm.recv() == 'start:baseline matching', 'Expected start:baseline matching signal from other process...'
     statusUpdate('Matching baseline document links to source document...(this may take a few minutes)')
     srcIndex = mem.srcIndex
@@ -1324,6 +1330,11 @@ def StartSourceWithMarkupText(text, mem, comm):
     resultOb.statPotentialMatches = min(mem.baseAllLinksLen, len(sourceDoc.links)) - max(mem.baseSkippedCount, srcSkippedTotal)
     resultOb.statTotalCorrect = min(mem.totalCorrectCount, srcCorrectTotal)
     resultOb.baseAllLinks = mem.baseAllLinks if SHOW_ALL_STATUS else None
+    resultOb.statBaseIndexWordsTooCommonCount = mem.baseIndexWordsTooCommonCount
+    resultOb.statBaseIndexUniqueWordCount = mem.baseIndexUniqueWordCount
+    resultOb.statSrcIndexWordsTooCommonCount = sourceDoc.statsWordsTooCommonCount
+    resultOb.statSrcIndexUniqueWordCount = sourceDoc.statsUniqueWordCount
+    
     return resultOb
 
 def getFlagValue(flag):
@@ -1425,17 +1436,31 @@ def processCmdParams():
         dumpJSONResults(outStruct)
 
 def dumpJSONResults(ob):
-    statusUpdate('JSON output:')
+    statusUpdate('\nIndex statistics:')
+    statusUpdate('  Baseline index:')
+    statusUpdate('    Total context words rejected due to being to common: ' + str(ob.statBaseIndexWordsTooCommonCount))
+    statusUpdate('    Total unique words used for context matching: ' + str(ob.statBaseIndexUniqueWordCount))
+    statusUpdate('  Source index:')
+    statusUpdate('    Total context words rejected due to being to common: ' + str(ob.statSrcIndexWordsTooCommonCount))
+    statusUpdate('    Total unique words used for context matching: ' + str(ob.statSrcIndexUniqueWordCount))
+    statusUpdate('')
+    statusUpdate('\nJSON output:')
     statusUpdate('')
     print '{'
     print '  "ratioThreshold": ' + str(MATCH_RATIO_THRESHOLD) + ','
     print '  "matchingLinksTotal": ' + str(ob.statTotalMatches) + ','
     print '  "correctLinksTotal": ' + str(ob.statTotalCorrect) + ','
     print '  "potentialMatchingLinksSetSize": ' + str(ob.statPotentialMatches) + ','
-    print '  "percentMatched": ' + str(float(ob.statTotalMatches) / float(ob.statPotentialMatches))[:5] + ','
-    print '  "percentCorrect": ' + str(float(ob.statTotalCorrect) / float(ob.statPotentialMatches))[:5] + ','
-    dumpJSONDocResults(ob.statSrcAllLinksLen, ob.srcAllLinks, 'sourceDoc', ob.statTotalMatches, True)
+    if ob.statPotentialMatches == 0:
+        print '  "percentMatched": 0.000,'
+    else:
+        print '  "percentMatched": ' + str(float(ob.statTotalMatches) / float(ob.statPotentialMatches))[:5] + ','
+    if ob.statPotentialMatches == 0:
+        print '  "percentCorrect": 0.000,'
+    else:
+        print '  "percentCorrect": ' + str(float(ob.statTotalCorrect) / float(ob.statPotentialMatches))[:5] + ','
     dumpJSONDocResults(ob.statBaseAllLinksLen, ob.baseAllLinks, 'baselineDoc', ob.statTotalMatches, False)
+    dumpJSONDocResults(ob.statSrcAllLinksLen, ob.srcAllLinks, 'sourceDoc', ob.statTotalMatches, True)
     print '}'
 
 def dumpJSONDocResults(linksLen, links, docName, numMatchingLinks, addTrailingComma):
