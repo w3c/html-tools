@@ -1,0 +1,60 @@
+/* Dependencies: expects the following attributes added to anchors:
+  data-ld-nm   -- not matched
+  data-ld-nm-e -- not matched - external
+  data-ld-m    -- matched
+  data-ld-m-e  -- matched-external
+  data-ld-c    -- correct
+  data-ld-c-e  -- correct-external
+  data-ld-s    -- skipped
+  data-ld-b    -- broken
+*/
+
+/* layout specific: common */ 
+
+a[href][data-ld-nm], 
+a[href][data-ld-nm-e],
+a[href][data-ld-m],
+a[href][data-ld-m-e],
+a[href][data-ld-c],
+a[href][data-ld-c-e],
+a[href][data-ld-s],
+a[href][data-ld-b] {
+  box-shadow: 0 0 1em white !important;
+  text-shadow: 0 0 0.2em black !important;
+  outline-width: 0.1em !important;
+  outline-style: solid !important;
+  text-decoration: none !important;
+  color: white !important;
+  position: relative !important;
+}
+
+a[href][data-ld-nm-e]::before,
+a[href][data-ld-m-e]::before,
+a[href][data-ld-c-e]::before {
+  content:'';
+  position: absolute;
+  height: 0;
+  width: 0;
+  border-top: 0.6em solid white;
+  border-right:0.6em solid transparent;
+}
+
+/* color specific differentiation */
+a[href][data-ld-nm], a[href][data-ld-nm-e], a[href][data-ld-b] {
+  background-color: silver !important;
+  outline-color: gray !important;
+}
+a[href][data-ld-s] {
+  background-color: skyblue !important;
+  outline-color: steelblue !important;
+}
+a[href][data-ld-m], a[href][data-ld-m-e] {
+  /* background-image applied in visualinlinestyle.config */
+  outline-color: maroon !important;
+}
+a[href][data-ld-c], a[href][data-ld-c-e] {
+  /* background-image applied in visualinlinestyle.config */
+  outline-color: darkgreen !important;
+}
+
+/* See also, visualinlinestyle.config */

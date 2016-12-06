@@ -317,7 +317,7 @@ def resolveMatchResultConflicts(matchResultsArray):
     if matchResultsArrayLen > 1000 and over50Count > (matchResultsArrayLen / 10): # show this at >10% of all links
         statusUpdate('**Note** ' + str(int(float(over50Count) / matchResultsArrayLen * 100)) + '% of all links have more than 50 match conflicts each.')
         statusUpdate('  Consider increasing the match ratio to reduce match conflicts (via the -ratio command line flag).')
-    onePercent = matchResultsArrayLen / 100 if matchResultsArrayLen > 1000 else matchResultsArrayLen + 1
+    onePercent = matchResultsArrayLen / 100 if matchResultsArrayLen > 1000 else matchResultsArrayLen + 2
     i = 0
     count = 0
     percent = 0
@@ -1125,6 +1125,7 @@ def cmdSimpleHelp():
     print "  -h                        Extended help and additional flag descriptions"
     print "  -v                        Verbose output (nice to know what's going on)"
     print "  -statsonly                Skips outputting match results for all links"
+    print "  -visual                   Writes baseline/source doc to files with visual link diff results"
     print "  -ignorelist <json file>   List of URLs to skip when matching"
     print "  -ratio [value 0.0 - 1.0]  Adjust the threshold for what is considered a match"
 
@@ -1180,6 +1181,19 @@ def cmdhelp():
     print "      Shows verbose status messages during processing. Useful for monitoring the progress"
     print "      of the tool."
     print ""
+    print "  -visual"
+    print ""
+    print "    Example: linkdiff -visual baseline_doc.html source_doc.html"
+    print ""
+    print "      Writes (or overwrites) visually-annotated versions of both the baseline and source"
+    print "      input files using custom stylesheets (visualglobalstyle.css and visualinlinestyle.config)"
+    print "      to the current directory. The files will be named 'visual_baseline.html' and"
+    print "      'visual_source.html'. Within these files, the matched link for a given link (excluding"
+    print "      external links) can be found in the other file by holding down the 'm' key while"
+    print "      clicking the link. (This navigates and scrolls the associated link into view in the"
+    print "      other document.) A tooltip annotates each link with the matching and/or correct ratios"
+    print "      as found by this tool."
+    print "" 
     print "  -parallelmatch <value greater than 1>"
     print ""
     print "    Example: linkdiff -parallelmatch 1 baseline.html http://source.html"
@@ -1216,6 +1230,7 @@ CPU_COUNT = None
 PROCESS_ERROR = None
 HALF_WORD_COUNT = None
 HALF_CONTEXT_MIN = 110 # Tuned using (W3C HTML spec text) -- NOT CONFIGURABLE
+VISUAL_ANNOTATE = None
 
 def getSharedMemory():
     processManager = Manager()
@@ -1229,6 +1244,10 @@ def setGlobals(mem):
     global PROCESS_ERROR
     global SHOW_STATUS
     global HALF_WORD_COUNT
+    global VISUAL_ANNOTATE
+    global VISUAL_INLINE_STYLES
+    global VISUAL_GLOBAL_STYLE
+    global VISUAL_GLOBAL_SCRIPT
     SHOW_STATUS = mem.showStatus
     SHOW_ALL_STATUS = mem.showAllStats
     MATCH_RATIO_THRESHOLD = mem.ratio
@@ -1236,6 +1255,10 @@ def setGlobals(mem):
     IGNORE_LIST = mem.ignoreList
     CPU_COUNT = mem.cpuCount
     HALF_WORD_COUNT = mem.halfContextWords
+    VISUAL_ANNOTATE = mem.visualAnnotate
+    VISUAL_INLINE_STYLES = mem.inlineStyles
+    VISUAL_GLOBAL_STYLE = mem.globalStyle
+    VISUAL_GLOBAL_SCRIPT = mem.globalScript
 
 def diffLinksWithFilename(baselineFilename, srcFilename, mem):
     forBaseline, forSource = Pipe()
@@ -1296,6 +1319,9 @@ def StartBaselineProcessorWithMarkupText(text, mem, comm):
     if SHOW_ALL_STATUS:
         mem.baseAllLinks = baselineDoc.links
     comm.send('done')
+    if VISUAL_ANNOTATE:
+        script = re.sub(r"\$\$OTHERFILE\$\$", 'visual_source.html', VISUAL_GLOBAL_SCRIPT) if VISUAL_GLOBAL_SCRIPT != None else None
+        dumpVisualDoc(text, 'visual_baseline.html', baselineDoc.links, script)
 
 def StartSourceWithFilename(sourceFilename, mem, comm):
     setGlobals(mem)
@@ -1323,6 +1349,9 @@ def StartSourceWithMarkupText(text, mem, comm):
     resultOb = lambda : None # a cheat to get an object with __dict__ ability.
     resultOb.srcAllLinks = sourceDoc.links if SHOW_ALL_STATUS else None
     assert comm.recv() == 'done', 'Expected done signal from other process...'
+    if VISUAL_ANNOTATE:
+        script = re.sub(r"\$\$OTHERFILE\$\$", 'visual_baseline.html', VISUAL_GLOBAL_SCRIPT) if VISUAL_GLOBAL_SCRIPT != None else None
+        dumpVisualDoc(text, 'visual_source.html', sourceDoc.links, script, 'Parallel writing visual baseline and source files to current directory...')
     assert totalMatchCount == mem.totalMatchCount, 'Total matches should be identical between both processes'
     resultOb.statBaseAllLinksLen = mem.baseAllLinksLen
     resultOb.statSrcAllLinksLen = len(sourceDoc.links)
@@ -1334,7 +1363,6 @@ def StartSourceWithMarkupText(text, mem, comm):
     resultOb.statBaseIndexUniqueWordCount = mem.baseIndexUniqueWordCount
     resultOb.statSrcIndexWordsTooCommonCount = sourceDoc.statsWordsTooCommonCount
     resultOb.statSrcIndexUniqueWordCount = sourceDoc.statsUniqueWordCount
-    
     return resultOb
 
 def getFlagValue(flag):
@@ -1371,13 +1399,17 @@ def setIgnoreList(newListFile, mem):
     localIgnoreList = {}
     if newListFile == None:
         return
-    ignoreRoot = json.loads(getTextFromLocalFile(newListFile))
+    ignoreListText = getTextFromLocalFile(newListFile)
+    if ignoreListText == None:
+        print "  Not using Ignore list"
+        return
+    ignoreRoot = json.loads(ignoreListText)
     if not "ignoreList" in ignoreRoot:
-        print "Ignore list format error: expected an root object with key 'ignoreList'"
+        print "Ignore list format error: expected an root object with key 'ignoreList'. Not using Ignore list"
         return
     listOIgnoreVals = ignoreRoot["ignoreList"]
     if not isinstance(listOIgnoreVals, list): #check for built-in list type.
-        print "Ignore list format error: expected the 'ignoreList' key to have a list as its value"
+        print "Ignore list format error: expected the 'ignoreList' key to have a list as its value. Not using Ignore list"
         return
     counter = 0
     for ignoreItem in listOIgnoreVals:
@@ -1387,6 +1419,60 @@ def setIgnoreList(newListFile, mem):
     mem.ignoreList = localIgnoreList
     statusUpdate('Using ignore list; entries found: ' + str(counter))
 
+def setLocalVisualStyles(mem):
+    statusUpdate("Loading inline style map 'visualinlinestyle.config'...")
+    localInlineStyles = {}
+    acceptableKeys = {
+        "data-ld-nm"   : True,
+        "data-ld-nm-e" : True,
+        "data-ld-m"    : True,
+        "data-ld-m-e"  : True,
+        "data-ld-c"    : True,
+        "data-ld-c-e"  : True,
+        "data-ld-s"    : True,
+        "data-ld-b"    : True
+    }
+    text = getTextFromLocalFile("visualinlinestyle.config")
+    if text == None:
+        print "Visual diff will not use custom inline styles."
+    else:
+        inlineStylesRoot = json.loads(text)
+        for key in inlineStylesRoot:
+            if not key in acceptableKeys:
+                print "Error loading visualinlinestyle.config: found unexpected key '" + key + "'. Visual diff will not be enabled."
+                return
+            if not isinstance(inlineStylesRoot[key], list): #check for built-in list type.
+                print "Error loading visualinlinestyle.config: expected key '" + key + "' to have a list as its value (min of one string entry). Visual diff will not be enabled."
+                return
+            if len(inlineStylesRoot[key]) == 0:
+                continue  # no need to put empty arrays into the map
+            if inlineStylesRoot[key][0] == "":
+                continue  # no need to put arrays of empty strings in the map.
+            for item in inlineStylesRoot[key]:
+                if not isinstance(item, basestring):
+                    print "Error loading visualinlinestyle.config: expected array at key '" + key + "' to have only strings as array entries. Visual diff will not be enabled."
+                    return
+            localInlineStyles[key] = inlineStylesRoot[key]
+        mem.inlineStyles = localInlineStyles
+    # load the global styles
+    statusUpdate("Loading global stylesheet 'visualglobalstyle.css'...")
+    text = getTextFromLocalFile("visualglobalstyle.css")
+    if text == None:
+        print "Visual diff will not use a global style sheet."
+    else:
+        mem.globalStyle = text
+    # Load the global script
+    statusUpdate("Loading global script 'visualglobalscript.js'...")
+    text = getTextFromLocalFile("visualglobalscript.js")
+    if text == None:
+        print "Visual diff will not use a global script."
+    else:
+        mem.globalScript = text
+    if mem.globalStyle == None and mem.inlineStyles == None and mem.globalScript == None:
+        print "Visual diff disabled"
+        return
+    mem.visualAnnotate = True
+    
 def processCmdParams():
     mem = getSharedMemory()
     mem.showStatus = False
@@ -1396,6 +1482,10 @@ def processCmdParams():
     mem.cpuCount = multiprocessing.cpu_count()
     mem.ignoreList = {}
     mem.halfContextWords = 10
+    mem.visualAnnotate = False
+    mem.inlineStyles = None
+    mem.globalStyle = None
+    mem.globalScript = None
     if len(sys.argv) == 1:
         return cmdSimpleHelp()
     if '-h' in sys.argv or '-H' in sys.argv or '/h' in sys.argv or '-?' in sys.argv or '/?' in sys.argv:
@@ -1416,6 +1506,9 @@ def processCmdParams():
         expectedArgs += 1
     if '-statsonly' in sys.argv:
         mem.showAllStats = False
+        expectedArgs += 1
+    if '-visual' in sys.argv:
+        setLocalVisualStyles(mem)
         expectedArgs += 1
     if '-ratio' in sys.argv:
         setRatio(getFlagValue('-ratio'), mem)
@@ -1475,6 +1568,14 @@ def dumpJSONDocResults(linksLen, links, docName, numMatchingLinks, addTrailingCo
         print '    ]'
     print '  }' + (',' if addTrailingComma else '')
 
+def dumpVisualDoc(rawOriginalText, filename, links, script, statusText = None):
+    if statusText != None:
+        statusUpdate(statusText)
+    f = open(filename, "w")  #overwrites existing file with this name.
+    p = Parser4LinkAnnotation()
+    p.parseMarkupToAnnotatedFile(rawOriginalText, links, f, script)
+    f.close()
+
 def statusUpdate(text):
     if SHOW_STATUS:
         print text
@@ -1524,6 +1625,135 @@ def toUnicode(raw):
 def isPython64bit():
     return platform.architecture()[0] == '64bit'
 
+class Parser4LinkAnnotation(HTMLParser):
+    def handle_starttag(self, tag, attrs, writeEndSlash = False):
+        self._check4Injection(tag)
+        self.file.write("<" + tag)
+        savedHref = None
+        savedStyle = None
+        # iterate the attrs writing them all (except for href, which I may want to change...)
+        for nameValTuple in attrs:
+            if nameValTuple[0] == "href" and tag == "a" and savedHref == None: # only take the first occurance if multiple...
+                if nameValTuple[1] != None:
+                    savedHref = nameValTuple[1] # the value.
+                else:
+                    savedHref = "" # assume empty if only boolean attribute given.
+            elif nameValTuple[0] == "style" and savedStyle == None: # only take the first occurance...
+                if nameValTuple[1] != None:
+                    savedStyle = nameValTuple[1]
+                else:
+                    savedStyle = ""
+            else:
+                self.file.write(' ' + nameValTuple[0])
+                if nameValTuple[1] != None:
+                    self.file.write('="' + nameValTuple[1] + '"')
+        if savedHref != None: # meaning an a[href] was present
+            linkinfo = self.linksInfo[self.linkIndexCounter]
+            self.linkIndexCounter += 1
+            # write out [potentially modified] href
+            if linkinfo.status == "matched" or linkinfo.status == "correct":
+                self.file.write(' href="#"')
+                self.file.write(' data-ld-href="' + savedHref + '"')
+            else:
+                self.file.write(' href="' + savedHref + '"')
+            # write out title:
+            self.file.write(' title="HREF=' + savedHref + '  MATCHRATIO=' + str(linkinfo.matchRatio)[:5])
+            if linkinfo.status == "correct" or linkinfo.status == "correct-external":
+                self.file.write(' CORRECTRATIO=' + str(linkinfo.correctRatio)[:5])
+            self.file.write('"')
+            # write out match index:
+            self.file.write(' data-ld-match-index="' + str(linkinfo.matchIndex) + '"')
+            # write out status matching code
+            statusAttrib = self.statusMap[linkinfo.status]
+            self.file.write(' ' + statusAttrib)
+            if self.inlineStyles != None and statusAttrib in self.inlineStyles:
+                styleArray = self.inlineStyles[statusAttrib]
+                args = []
+                for i in xrange(1, len(styleArray)): # index 0 is the final substitution string
+                    preprocessedParam = styleArray[i]
+                    try:
+                        externalCodeEvalResult = eval(preprocessedParam.format(MATCHRATIO=linkinfo.matchRatio, CORRECTRATIO=linkinfo.correctRatio)) #dirty eval :-(
+                        args.append(externalCodeEvalResult)
+                    except Exception, e:
+                        print "Error in file 'visualinlinestyle.config': pre-processing format string:\n  '" + preprocessedParam + "'\n" + e.message
+                        del self.inlineStyles[statusAttrib] # no longer available due to error.
+                        args.append("FORMATERROR")
+                        break
+                try:
+                    inlineStyleFragment = styleArray[0].format(*args)
+                except Exception:
+                    inlineStyleFragment = "FORMATERROR"
+                if savedStyle != None:
+                    savedStyle += ";" + inlineStyleFragment
+                else:
+                    savedStyle = inlineStyleFragment
+        if savedStyle != None:
+            self.file.write(' style="' + savedStyle + '"')
+        if writeEndSlash:
+            self.file.write("/>")
+        else:
+            self.file.write(">")
+    
+    def _check4Injection(self, tagOrImpliedTag):
+        # check for global style injection needed
+        if self.globalStyleInjectionString != None and not tagOrImpliedTag in self.stayPendingTagNames:
+            self.file.write("\n<style>\n/* Inserted by the linkdiff tool */\n" + self.globalStyleInjectionString + "\n</style>\n")
+            self.globalStyleInjectionString = None
+        if self.globalScriptInjectionString != None and not tagOrImpliedTag in self.stayPendingTagNames:
+            self.file.write("\n<script>\n/* Inserted by the linkdiff tool */\n" + self.globalScriptInjectionString + "\n</script>\n")
+            self.globalScriptInjectionString = None
+            
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs, True)
+    
+    def handle_endtag(self, tag):
+        self.file.write("</" + tag + ">")
+        
+    def handle_data(self, data):
+        self._check4Injection("implied")
+        self.file.write(data)
+
+    def handle_entityref(self, name):
+        self.file.write("&"+name+";")
+
+    def handle_charref(self, name):
+        self.file.write("&#"+name+";")
+    
+    def handle_comment(self, comment):
+        self.file.write("<!--" + comment + "-->")
+        
+    def handle_decl(self, decl):
+        self.file.write("<!" + decl + ">")
+        
+    def handle_pi(self, pi):
+        self.file.write("<?" + pi + ">") #no closing question mark, per documentation (SGML rules)
+
+    def unknown_decl(self, unkn):
+        self._check4Injection("unknownthing")
+        self.file.write("<![" + unkn + "]>")
+        
+    def parseMarkupToAnnotatedFile(self, markup, linksInfo, file, scriptInjectionString = None):
+        self.globalStyleInjectionString = VISUAL_GLOBAL_STYLE
+        self.globalScriptInjectionString = scriptInjectionString
+        self.inlineStyles = VISUAL_INLINE_STYLES
+        self.stayPendingTagNames = [ "html", "head", "title", "base", "basefont", "bgsound", "link", "meta", "noscript", "noframes", "style", "script" ]
+        self.linkIndexCounter = 0
+        self.statusMap = { 
+            "non-matched":           "data-ld-nm",
+            "matched":               "data-ld-m",
+            "correct":               "data-ld-c",
+            "skipped":               "data-ld-s",
+            "broken":                "data-ld-b",
+            "non-matched-external":  "data-ld-nm-e",
+            "matched-external":      "data-ld-m-e",
+            "correct-external":      "data-ld-c-e"
+        }
+        self.file = file
+        self.linksInfo = linksInfo
+        HTMLParser.reset(self) # among other things, resets the line numbering :-)
+        HTMLParser.feed(self, markup)
+        HTMLParser.close(self)
+    
     # Only the main process should execute this (spawned processes will skip it)
 if __name__ == '__main__':
     processCmdParams()
