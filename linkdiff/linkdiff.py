@@ -1646,18 +1646,18 @@ class Parser4LinkAnnotation(HTMLParser):
             else:
                 self.file.write(' ' + nameValTuple[0])
                 if nameValTuple[1] != None:
-                    self.file.write('="' + nameValTuple[1] + '"')
+                    self.file.write('="' + nameValTuple[1].encode("utf-8") + '"')
         if savedHref != None: # meaning an a[href] was present
             linkinfo = self.linksInfo[self.linkIndexCounter]
             self.linkIndexCounter += 1
             # write out [potentially modified] href
             if linkinfo.status == "matched" or linkinfo.status == "correct":
                 self.file.write(' href="#"')
-                self.file.write(' data-ld-href="' + savedHref + '"')
+                self.file.write(' data-ld-href="' + savedHref.encode("utf-8") + '"')
             else:
-                self.file.write(' href="' + savedHref + '"')
+                self.file.write(' href="' + savedHref.encode("utf-8") + '"')
             # write out title:
-            self.file.write(' title="HREF=' + savedHref + '  MATCHRATIO=' + str(linkinfo.matchRatio)[:5])
+            self.file.write(' title="HREF=' + savedHref.encode("utf-8") + '  MATCHRATIO=' + str(linkinfo.matchRatio)[:5])
             if linkinfo.status == "correct" or linkinfo.status == "correct-external":
                 self.file.write(' CORRECTRATIO=' + str(linkinfo.correctRatio)[:5])
             self.file.write('"')
@@ -1684,7 +1684,7 @@ class Parser4LinkAnnotation(HTMLParser):
                 except Exception:
                     inlineStyleFragment = "FORMATERROR"
                 if savedStyle != None:
-                    savedStyle += ";" + inlineStyleFragment
+                    savedStyle += ";" + inlineStyleFragment.encode("utf-8")
                 else:
                     savedStyle = inlineStyleFragment
         if savedStyle != None:
@@ -1697,46 +1697,54 @@ class Parser4LinkAnnotation(HTMLParser):
     def _check4Injection(self, tagOrImpliedTag):
         # check for global style injection needed
         if self.globalStyleInjectionString != None and not tagOrImpliedTag in self.stayPendingTagNames:
-            self.file.write("\n<style>\n/* Inserted by the linkdiff tool */\n" + self.globalStyleInjectionString + "\n</style>\n")
+            self.file.write("\n<style>\n/* Inserted by the linkdiff tool */\n" + self.globalStyleInjectionString.encode("utf-8") + "\n</style>\n")
             self.globalStyleInjectionString = None
         if self.globalScriptInjectionString != None and not tagOrImpliedTag in self.stayPendingTagNames:
-            self.file.write("\n<script>\n/* Inserted by the linkdiff tool */\n" + self.globalScriptInjectionString + "\n</script>\n")
+            self.file.write("\n<script>\n/* Inserted by the linkdiff tool */\n" + self.globalScriptInjectionString.encode("utf-8") + "\n</script>\n")
             self.globalScriptInjectionString = None
+        if tagOrImpliedTag in self.stayPendingTagNames:
+            self.inNestedStayPendingTag = True
+        else:
+            self.inNestedStayPendingTag = False
             
     def handle_startendtag(self, tag, attrs):
         self.handle_starttag(tag, attrs, True)
     
     def handle_endtag(self, tag):
+        if not tag in self.stayPendingTagNames:
+            self.inNestedStayPendingTag = False
         self.file.write("</" + tag + ">")
         
     def handle_data(self, data):
-        self._check4Injection("implied")
-        self.file.write(data)
+        if not self.inNestedStayPendingTag:
+            self._check4Injection("implied")
+        self.file.write(data.encode("utf-8"))
 
     def handle_entityref(self, name):
-        self.file.write("&"+name+";")
+        self.file.write("&"+name.encode("ascii")+";")
 
     def handle_charref(self, name):
-        self.file.write("&#"+name+";")
+        self.file.write("&#"+name.encode("ascii")+";")
     
     def handle_comment(self, comment):
-        self.file.write("<!--" + comment + "-->")
+        self.file.write("<!--" + comment.encode("utf-8") + "-->")
         
     def handle_decl(self, decl):
-        self.file.write("<!" + decl + ">")
+        self.file.write("<!" + decl.encode("utf-8") + ">")
         
     def handle_pi(self, pi):
-        self.file.write("<?" + pi + ">") #no closing question mark, per documentation (SGML rules)
+        self.file.write("<?" + pi.encode("utf-8") + ">") #no closing question mark, per documentation (SGML rules)
 
     def unknown_decl(self, unkn):
         self._check4Injection("unknownthing")
-        self.file.write("<![" + unkn + "]>")
+        self.file.write("<![" + unkn.encode("utf-8") + "]>")
         
     def parseMarkupToAnnotatedFile(self, markup, linksInfo, file, scriptInjectionString = None):
         self.globalStyleInjectionString = VISUAL_GLOBAL_STYLE
         self.globalScriptInjectionString = scriptInjectionString
         self.inlineStyles = VISUAL_INLINE_STYLES
         self.stayPendingTagNames = [ "html", "head", "title", "base", "basefont", "bgsound", "link", "meta", "noscript", "noframes", "style", "script" ]
+        self.inNestedStayPendingTag = False
         self.linkIndexCounter = 0
         self.statusMap = { 
             "non-matched":           "data-ld-nm",

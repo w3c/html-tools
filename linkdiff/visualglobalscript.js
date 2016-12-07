@@ -2,6 +2,8 @@ document.addEventListener("click", (e) => {
   if (e.target.nodeName == "A") {
     if (e.target.hasAttribute("href")) {
       if (e.target.hasAttribute("data-ld-m") || e.target.hasAttribute("data-ld-c")) { // external links are not tampered with
+        e.preventDefault();
+        e.stopPropagation();
         if (keyState.navToMatch) {
           // post message to navigate other windows to specific anchor.
           getGlobalOtherWindow().postMessage({findAnchor: parseInt(e.target.dataset.ldMatchIndex) }, "*");  
@@ -10,7 +12,6 @@ document.addEventListener("click", (e) => {
           // normal internal link.
           let elem = document.querySelector(e.target.dataset.ldHref);
           if (elem) {
-            e.preventDefault();
             elem.scrollIntoView();
           }
         }
