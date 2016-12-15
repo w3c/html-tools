@@ -73,6 +73,11 @@ use an ignore list**.
 }
 ```
 
+A "visual diff" flag may be provided, which causes the tool to additionally output two files: a 
+`visual_baseline.html` and `visual_source.html`. These files will contain a visual output of the
+link diff tool: gray highlighted links are not found, red-ish links are matched but not correct, 
+while green links are matched and correct.
+
 Output
 ========
 
@@ -171,7 +176,9 @@ A link object has:
     0.
 * `correctRatio` - the value from 0 to 1 used to determine that the target of the link was correct
    (or not) for the given matched pair. The default value is 0.
-* `lineNo` - the line number in the source where the link was encountered.
+* `lineNo` - the line number in the source where the link was encountered. If the "visual diff" flag 
+   is provided, the line number will refer to the line numbers in the output `visual_baseline.html`
+   and `visual_source.html` files (which have a different offset due to injected CSS and JavaScript).
 
 External Links
 ==============
