@@ -20,8 +20,7 @@ var io = require('./io-promise');
 var specURL = "https://w3c.github.io/html/single-page.html";
 var baseOutputURL = './out/';
 
-if (process.argv[2] !== undefined
-    && process.argv[3] !== undefined) {
+if (process.argv[2] !== undefined && process.argv[3] !== undefined) {
   specURL = process.argv[2];
   baseOutputURL = process.argv[3];
 }
@@ -59,16 +58,14 @@ ruleSet.forEach(function (lib) {
 function* run() {
 
   var nightmare = Nightmare();
-  var spec = nightmare
-    .goto(specURL);
+  var spec = nightmare.goto(specURL);
   var i, id;
 
   // first yield for the document to load
   console.log("loading " + specURL);
-  var title = yield spec
-    .evaluate(function() {
-      return document.title;
-    });
+  var title = yield spec.evaluate(function() {
+    return document.title;
+  });
 
   console.log("Found " + title);
 
@@ -78,8 +75,7 @@ function* run() {
   for (i = 0; i < rules.length; i++) {
     var rule = rules[i];
     console.log("  " + rule.name);
-    yield spec
-      .evaluate(rule.transform);
+    yield spec.evaluate(rule.transform);
   }
 
   // rewrite the links
@@ -88,52 +84,51 @@ function* run() {
   var ret = '';
   for (i = 0; i < sections.length; i++) {
     id = sections[i];
-    ret += yield spec
-      .evaluate(function(id) {
-        var destfile = id;
-        if (destfile === "index") {
-          destfile = "fullindex";
-        }
-        var ret = "";
-        if (window.idMap === undefined) {
-          window.idMap = [];
-        }
-        var section = document.getElementById(id).parentNode;
-        while (section.tagName !== "SECTION") {
-          section = section.parentNode;
-        }
-        var elements = section.querySelectorAll("*[id]");
-        for (var i = 0; i < elements.length; i++) {
-          window.idMap["#" + elements[i].id] = id;
-          ret += '"#' + elements[i].id + '":"' + destfile + '"\n';
-        }
-        return ret;
-      }, id);
+    ret += yield spec.evaluate(function(id) {
+      var destfile = id;
+      if (destfile === "index") {
+        destfile = "fullindex";
+      }
+      var ret = "";
+      if (window.idMap === undefined) {
+        window.idMap = [];
+      }
+      var section = document.getElementById(id).parentNode;
+      while (section.tagName !== "SECTION") {
+        section = section.parentNode;
+      }
+      var elements = section.querySelectorAll("*[id]");
+      for (var i = 0; i < elements.length; i++) {
+        window.idMap["#" + elements[i].id] = id;
+        ret += '"#' + elements[i].id + '":"' + destfile + '"\n';
+      }
+      return ret;
+    }, id);
   }
   // (save that for future analysis/debugging)
   io.save(baseOutputURL + "logs/idmap.txt", ret);
 
   // second, rewrite the href to match the mapping
-  var links = yield spec
-      .evaluate(function() {
-        var ret = "";
-        if (window.idMap === undefined) {
-          return "oops";
-        }
-        var links = document.querySelectorAll("a[href^='#']");
+  var links = yield spec.evaluate(function() {
+    var ret = "";
+    if (window.idMap === undefined) {
+      return "oops";
+    }
+    var links = document.querySelectorAll("a[href^='#']");
 
-        for (var i = 0; i < links.length; i++) {
-          var link = links[i];
-          var href = link.getAttribute("href");
-          if (window.idMap[href] !== undefined) {
-            link.href = window.idMap[href] + ".html" + href;
-          } else {
-            ret += href + "\n";
-          }
-        }
+    for (var i = 0; i < links.length; i++) {
+      var link = links[i];
+      var href = link.getAttribute("href");
+      if (window.idMap[href] !== undefined) {
+        link.href = window.idMap[href] + ".html" + href;
+      }
+      else {
+        ret += href + "\n";
+      }
+    }
 
-        return ret;
-      });
+    return ret;
+  });
 
   if (links !== "") {
     // (save that for future analysis/debugging)
@@ -142,19 +137,18 @@ function* run() {
 
 
   console.log("Generating index");
-  var overview = yield spec
-      .evaluate(function() {
-        var doc = document.documentElement.cloneNode(true);
-        var body = doc.children[1];
-        var children = body.children;
-        var found = false;
-        for (var i = children.length - 1; i >=  0 && !found; i--) {
-          found = (children[i].tagName === "MAIN");
-          body.removeChild(children[i]);
-        }
+  var overview = yield spec.evaluate(function() {
+    var doc = document.documentElement.cloneNode(true);
+    var body = doc.children[1];
+    var children = body.children;
+    var found = false;
+    for (var i = children.length - 1; i >=  0 && !found; i--) {
+      found = (children[i].tagName === "MAIN");
+      body.removeChild(children[i]);
+    }
 
-        return "<!DOCTYPE html>\n" + doc.outerHTML;
-      });
+    return "<!DOCTYPE html>\n" + doc.outerHTML;
+  });
   io.save(baseOutputURL + "index.html", overview);
 
 
@@ -162,8 +156,7 @@ function* run() {
   for (i = 0; i < sections.length; i++) {
     id = sections[i];
     console.log("  " + id);
-    var sec = yield spec
-      .evaluate(function(id) {
+    var sec = yield spec.evaluate(function(id) {
       try {
         var doc = document.documentElement.cloneNode(true);
 
@@ -191,10 +184,10 @@ function* run() {
         for (var j = main.children.length - 1; j >= 0; j--) {
           var section = main.children[j];
           var h2 = section.querySelector("h2");
-          if (section.tagName !== "SECTION"
-              || h2 === null || h2.id !== id) {
+          if (section.tagName !== "SECTION" || h2 === null || h2.id !== id) {
             main.removeChild(section);
-          } else {
+          }
+          else {
             // we keep this section
             // remember its position and its title
             section_position = j;
@@ -211,7 +204,8 @@ function* run() {
           if (i !== section_position) {
             if (i === (section_position - 1)) {
               previous_toc = tocs[i];
-            } else if (i === (section_position + 1)) {
+            }
+            else if (i === (section_position + 1)) {
               next_toc = tocs[i];
             }
             toc.removeChild(tocs[i]);
@@ -220,22 +214,17 @@ function* run() {
 
         // make a nice title for the document
         var titleElement = doc.querySelector("title");
-        titleElement.textContent = titleElement.textContent + ": " +
-          titleSection;
+        titleElement.textContent = titleElement.textContent + ": " + titleSection;
 
         // insert top and botton mini navbars
         var nav = document.createElement("nav");
         nav.className = "prev_next";
-        var innerNavHTML = "<a href='index.html#contents'>"
-          + "Table of contents</a>";
+        var innerNavHTML = "<a href='index.html#contents'>" + "Table of contents</a>";
         if (previous_toc !== null) {
-          innerNavHTML = "← "
-            + previous_toc.querySelector("a").outerHTML
-            + " — " + innerNavHTML;
+          innerNavHTML = "← " + previous_toc.querySelector("a").outerHTML + " — " + innerNavHTML;
         }
         if (next_toc !== null) {
-          innerNavHTML = " — " + innerNavHTML + " →"
-            + next_toc.querySelector("a").outerHTML;
+          innerNavHTML = " — " + innerNavHTML + " →" + next_toc.querySelector("a").outerHTML;
         }
         nav.innerHTML = innerNavHTML;
         var mainNav = doc.querySelector("nav#toc");
@@ -243,7 +232,8 @@ function* run() {
         mainNav.parentNode.appendChild(nav.cloneNode(true));
 
         return "<!DOCTYPE html>\n" + doc.outerHTML;
-      } catch (e) {
+      }
+      catch (e) {
         // catch all so we can know what happened
         return "ERROR: " + e.message;
       }
@@ -251,7 +241,8 @@ function* run() {
 
     if (sec.startsWith("ERROR:")) {
       console.log("    " + sec);
-    } else {
+    }
+    else {
       var destfile = id;
       if (destfile === "index") {
         destfile = "fullindex";
