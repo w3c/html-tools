@@ -13,5 +13,5 @@ Running
 
 You can run this as:
 
-    node multipage.js [url of the spec] [output directory]
+    node multipage.js [path of the spec] [output directory]
 
