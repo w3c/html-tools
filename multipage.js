@@ -1,262 +1,227 @@
-#!/usr/bin/env node
-/*jshint -W054 */
+"use strict";
 
-var Nightmare = require('nightmare');
-var vo = require('vo');
-var io = require('./io-promise');
+var fs = require('fs');
+var whacko = require('whacko');
 
-// Split the HTML spec into multipages
-//
-// load the document into a browser,
-// do one small cleanup for sections
-// remap all the hrefs based on section files
-// for each document/section,
-//   clone the main document
-//   remove what's unnecessary
-//   add some navbars
-//   dump the output into a file
+var baseOutputPath = "./out/";
+var specFile = 'single-page.html';
 
-//var specURL = 'file://' + __dirname + "/../single-page.html";
-var specURL = "https://w3c.github.io/html/single-page.html";
-var baseOutputURL = './out/';
-
-if (process.argv[2] !== undefined && process.argv[3] !== undefined) {
-  specURL = process.argv[2];
-  baseOutputURL = process.argv[3];
+if(process.argv[2] !== undefined) {
+	if(process.argv[3] !== undefined) {
+		baseOutputPath = process.argv[3];
+	}
+	specFile = process.argv[2];
 }
+
+console.log('This platform is', process.platform, 'node', process.version);
+
+console.log('Loading single-page.html');
+
+var $ = whacko.load(fs.readFileSync(specFile));
 
 var sections = [
-      "introduction"
-  ,   "infrastructure"
-  ,   "dom"
-  ,   "semantics"
-  ,   "editing"
-  ,   "browsers"
-  ,   "webappapis"
-  ,   "syntax"
-  ,   "xhtml"
-  ,   "rendering"
-  ,   "obsolete"
-  ,   "iana"
-  ,   "index"
-  ,   "property-index"
-  ,   "idl-index"
-  ,   "references"
-  ,   "acknowledgements"
+     { id: "introduction" }
+  ,  { id: "infrastructure" }
+  ,  { id: "dom" }
+  ,  { id: "semantics" }
+  ,  { id: "document-metadata" }
+  ,  { id: "sections" }
+  ,  { id: "grouping-content" }
+  ,  { id: "textlevel-semantics" }
+  ,  { id: "edits" }
+  ,  { id: "semantics-embedded-content" }
+  ,  { id: "links" }
+  ,  { id: "tabular-data" }
+  ,  { id: "sec-forms" }
+  ,  { id: "interactive-elements" }
+  ,  { id: "semantics-scripting" }
+  ,  { id: "common-idioms-without-dedicated-elements" }
+  ,  { id: "disabled-elements" }
+  ,  { id: "matching-html-elements-using-selectors" }
+  ,  { id: "editing" }
+  ,  { id: "browsers" }
+  ,  { id: "webappapis" }
+  ,  { id: "syntax" }
+  ,  { id: "xhtml" }
+  ,  { id: "rendering" }
+  ,  { id: "obsolete" }
+  ,  { id: "iana" }
+  ,  { id: "index" }
+  ,  { id: "property-index" }
+  ,  { id: "idl-index" }
+  ,  { id: "references" }
+  ,  { id: "changes" }
+  ,  { id: "acknowledgements" }
 ];
 
-var rules = [];
+console.log("Removing unused sections");
 
-var ruleSet = [
-//  "proper-sections"
-];
+var keepsections = [];
+for(var i=0; i<sections.length; i++) {
+  var hasNode = $("#" + sections[i].id).length;
+  if (hasNode === 1) {
+    keepsections.push(sections[i]);
+  } else {
+    console.log("  Removed " + sections[i].id);
+  }
+}
+sections = keepsections;
 
-ruleSet.forEach(function (lib) {
-  rules.push(require("./rules/" + lib));
-});
+console.log("Creating ID->file mapping");
 
-function* run() {
+// first, create a mapping between the ids and their files
+var idMap = [];
+for(var i=0; i<sections.length; i++) {
+  var section = sections[i];
 
-  var nightmare = Nightmare();
-  var spec = nightmare.goto(specURL);
-  var i, id;
-
-  // first yield for the document to load
-  console.log("loading " + specURL);
-  var title = yield spec.evaluate(function() {
-    return document.title;
-  });
-
-  console.log("Found " + title);
-
-  // do whatever cleanup as defined by the rules
-  //   can't use forEach here because of the yield :-/
-  console.log("Applying preprocessing rules");
-  for (i = 0; i < rules.length; i++) {
-    var rule = rules[i];
-    console.log("  " + rule.name);
-    yield spec.evaluate(rule.transform);
+	if(section.id==="index") {
+		section.filename = "fullindex";
+	} else {
+    section.filename = section.id;
   }
 
-  // rewrite the links
-
-  // first, create a mapping between the ids and their files
-  var ret = '';
-  for (i = 0; i < sections.length; i++) {
-    id = sections[i];
-    ret += yield spec.evaluate(function(id) {
-      var destfile = id;
-      if (destfile === "index") {
-        destfile = "fullindex";
-      }
-      var ret = "";
-      if (window.idMap === undefined) {
-        window.idMap = [];
-      }
-      var section = document.getElementById(id).parentNode;
-      while (section.tagName !== "SECTION") {
-        section = section.parentNode;
-      }
-      var elements = section.querySelectorAll("*[id]");
-      for (var i = 0; i < elements.length; i++) {
-        window.idMap["#" + elements[i].id] = id;
-        ret += '"#' + elements[i].id + '":"' + destfile + '"\n';
-      }
-      return ret;
-    }, id);
+	var sNode = $('#'+section.id).parents('section');
+	if(!sNode) throw 'section not found';
+  if (sNode.length > 1) {
+    // if we are in a subsection, just take the first
+    sNode = sNode.first();
   }
-  // (save that for future analysis/debugging)
-  io.save(baseOutputURL + "logs/idmap.txt", ret);
-
-  // second, rewrite the href to match the mapping
-  var links = yield spec.evaluate(function() {
-    var ret = "";
-    if (window.idMap === undefined) {
-      return "oops";
-    }
-    var links = document.querySelectorAll("a[href^='#']");
-
-    for (var i = 0; i < links.length; i++) {
-      var link = links[i];
-      var href = link.getAttribute("href");
-      if (window.idMap[href] !== undefined) {
-        link.href = window.idMap[href] + ".html" + href;
-      }
-      else {
-        ret += href + "\n";
-      }
-    }
-
-    return ret;
-  });
-
-  if (links !== "") {
-    // (save that for future analysis/debugging)
-    io.save(baseOutputURL + "logs/link_errors.text", links);
+  if (id === "semantics") {
+    // we only take the first subsection for semantics
+    // others will be handled by ids
+    idMap['#' + section.id] = section.filename;
+    sNode = sNode.find("section").first();
   }
-
-
-  console.log("Generating index");
-  var overview = yield spec.evaluate(function() {
-    var doc = document.documentElement.cloneNode(true);
-    var body = doc.children[1];
-    var children = body.children;
-    var found = false;
-    for (var i = children.length - 1; i >=  0 && !found; i--) {
-      found = (children[i].tagName === "MAIN");
-      body.removeChild(children[i]);
-    }
-
-    return "<!DOCTYPE html>\n" + doc.outerHTML;
-  });
-  io.save(baseOutputURL + "index.html", overview);
-
-
-  console.log("Generating sections");
-  for (i = 0; i < sections.length; i++) {
-    id = sections[i];
-    console.log("  " + id);
-    var sec = yield spec.evaluate(function(id) {
-      try {
-        var doc = document.documentElement.cloneNode(true);
-
-        // remove unnecessary heading (Version links, editors, etc.)
-        var current = doc.querySelector("h2#abstract");
-        var nextElement;
-        do {
-          nextElement = current.nextElementSibling;
-          current.parentNode.removeChild(current);
-          current = nextElement;
-        } while (current.tagName !== "NAV");
-
-        current = doc.querySelector("header").nextElementSibling;
-        do {
-          nextElement = current.nextElementSibling;
-          current.parentNode.removeChild(current);
-          current = nextElement;
-        } while (nextElement !== null);
-
-        // only keep the appropriate section
-        var section_position = -1;
-        var titleSection = "";
-        var main = doc.querySelector("main");
-        // nodeList are live, so start from the end to remove children
-        for (var j = main.children.length - 1; j >= 0; j--) {
-          var section = main.children[j];
-          var h2 = section.querySelector("h2");
-          if (section.tagName !== "SECTION" || h2 === null || h2.id !== id) {
-            main.removeChild(section);
-          }
-          else {
-            // we keep this section
-            // remember its position and its title
-            section_position = j;
-            titleSection = h2.querySelector("span.content").textContent;
-          }
-        }
-
-        // only keep the appropriate nav toc
-        var toc = doc.querySelector("nav#toc ol");
-        var tocs = toc.children;
-        var previous_toc = null;
-        var next_toc = null;
-        for (i = tocs.length - 1; i >= 0; i--) {
-          if (i !== section_position) {
-            if (i === (section_position - 1)) {
-              previous_toc = tocs[i];
-            }
-            else if (i === (section_position + 1)) {
-              next_toc = tocs[i];
-            }
-            toc.removeChild(tocs[i]);
-          }
-        }
-
-        // make a nice title for the document
-        var titleElement = doc.querySelector("title");
-        titleElement.textContent = titleElement.textContent + ": " + titleSection;
-
-        // insert top and botton mini navbars
-        var nav = document.createElement("nav");
-        nav.className = "prev_next";
-        var innerNavHTML = "<a href='index.html#contents'>" + "Table of contents</a>";
-        if (previous_toc !== null) {
-          innerNavHTML = "← " + previous_toc.querySelector("a").outerHTML + " — " + innerNavHTML;
-        }
-        if (next_toc !== null) {
-          innerNavHTML = " — " + innerNavHTML + " →" + next_toc.querySelector("a").outerHTML;
-        }
-        nav.innerHTML = innerNavHTML;
-        var mainNav = doc.querySelector("nav#toc");
-        mainNav.parentNode.insertBefore(nav, mainNav);
-        mainNav.parentNode.appendChild(nav.cloneNode(true));
-
-        return "<!DOCTYPE html>\n" + doc.outerHTML;
-      }
-      catch (e) {
-        // catch all so we can know what happened
-        return "ERROR: " + e.message;
-      }
-    }, id);
-
-    if (sec.startsWith("ERROR:")) {
-      console.log("    " + sec);
-    }
-    else {
-      var destfile = id;
-      if (destfile === "index") {
-        destfile = "fullindex";
-      }
-      io.save(baseOutputURL + destfile + ".html", sec);
-    }
-  } // end for each section
-
-  console.log("Your documents are in " + baseOutputURL);
-  yield nightmare.end();
-
-  return "Done";
+	sNode.find('*[id]').each(function(i,element) {
+		idMap['#'+$(this).attr('id')] = section.filename;
+	});
 }
 
-vo(run)(function(err, result) {
-  if (err) throw err;
+// remapping links
+// console.log("Remapping links");
+var notFound = [];
+$("a[href^='#']").each(function(i,element) {
+	var href = $(this).attr('href');
+	if(idMap[href] !== undefined) {
+		$(this).attr('href',idMap[href] + ".html" + href);
+	} else {
+		if(notFound[href]===undefined) {
+			notFound[href] = href;
+			console.error('Link not found: ' + href);
+		}
+	}
 });
+
+// save the information to generate the proper sections
+
+console.log("Sorting out sections");
+
+var htmlTitle = $("title").first().text();
+
+for(var i=0; i<sections.length; i++) {
+  var section = sections[i];
+
+  // find the proper header
+  var header = $("#" + section.id);
+
+  // compute the nice title
+  section.title  = htmlTitle + ": "+ header.text();
+
+  // find the proper section
+  section.node = header.parent();
+  while (typeof section.node[0] !== 'undefined' && section.node.get(0).tagName !== "section") {
+    section.node = section.node.parent();
+  }
+  // for section 4, only keep the first subsection
+  if (section.id === "semantics") {
+    var newSection = $('<section></section>');
+    var h2 = section.node.children().first();
+    var s = section.node.children().get(1);
+    newSection.append(h2);
+    newSection.append(s);
+    section.node = newSection;
+  }
+}
+
+console.log("Generating index");
+
+// remove main to avoid having it in the index output
+$("nav").next().remove();
+
+fs.writeFileSync(baseOutputPath + "index.html",$.html());
+
+console.log("Generating sections");
+
+// main was removed before generating the index, so recreate it
+$("nav").after('<main></main>');
+
+// remove unnecessary heading (Version links, editors, etc.)
+var current = $("h2#abstract").first();
+do {
+  var nextElement = current.next();
+  current.remove();
+  current = nextElement;
+} while(current && current.get(0).tagName !== "nav");
+current = $("header").first().next();
+do {
+  nextElement = current.next();
+  current.remove();
+  current = nextElement;
+} while($(current).get(0));
+
+// this will be our template for each section page
+var sectionDocument = $.html();
+
+for(var i=0; i<sections.length; i++) {
+	var id = sections[i].id;
+
+	var doc = whacko.load(sectionDocument);
+
+  var section = sections[i].node;
+
+  // insert the proper section
+  var main = doc("main").first().append(section);
+
+  // Adjust the table of contents
+	var toc = doc("nav#toc ol").first();
+  var item = toc.find('a[href$="#' + id + '"]').first().parent();
+
+  // find its previous and next
+  var previous_item = undefined, next_item = undefined;
+  if (i > 0) {
+    previous_item = toc.find('a[href$="#' + sections[i-1].id + '"]').first();
+  }
+  if ((i+1) < sections.length) {
+    next_item = toc.find('a[href$="#' + sections[i+1].id + '"]').first();
+  }
+
+        // only keep the appropriate nav toc
+  toc.empty();
+  toc.append(item);
+
+  // again, for section 4, we eliminate all subtoc after the first
+  if (id === "semantics") {
+    item.children("ol").children("li").each(function(i,element) {
+      if (i > 0) doc(element).remove();
+    });
+  }
+
+  // make a nice title for the document
+	doc("title").first().text(sections[i].title);
+
+  // insert top and botton mini navbars
+  var nav = "<a href='index.html#contents'>Table of contents</a>";
+  if(previous_item!== undefined) {
+  	nav = "← " + previous_item.toString() + " — " + nav;
+  }
+  if(next_item!==undefined) {
+  	nav += " — " + next_item.toString() + " →";
+  }
+	nav = "<p class='prev_next'>" + nav + "</p>";
+	var mainNav = doc("nav#toc");
+	mainNav.prepend(nav);
+	mainNav.parent().append(nav);
+
+  console.log('Saving ' + sections[i].title);
+  fs.writeFileSync(baseOutputPath + sections[i].filename + ".html",doc.html());
+}
