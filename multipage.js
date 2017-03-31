@@ -141,6 +141,9 @@ for(var i=0; i<sections.length; i++) {
     newSection.append(s);
     section.node = newSection;
   }
+  // Serialize to string to avoid uncollectable jQuery object graphs when mixed into another
+  // document later. See https://github.com/w3c/html/issues/833
+  section.node = "<section>" + section.node.html() + "</section>";
 }
 
 console.log("Generating index");
@@ -177,10 +180,10 @@ for(var i=0; i<sections.length; i++) {
 
 	var doc = whacko.load(sectionDocument);
 
-  var section = sections[i].node;
+  var sectionString = sections[i].node;
 
   // insert the proper section
-  var main = doc("main").first().append(section);
+  var main = doc("main").first().append(sectionString);
 
   // Adjust the table of contents
 	var toc = doc("nav#toc ol").first();
