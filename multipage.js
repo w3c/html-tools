@@ -159,7 +159,7 @@ console.log("Generating sections");
 $("nav").after('<main></main>');
 
 // remove unnecessary heading (Version links, editors, etc.)
-var current = $("h2#abstract").first();
+var current = $("div[data-fill-with=abstract]").first();
 do {
   var nextElement = current.next();
   current.remove();
