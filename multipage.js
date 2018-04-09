@@ -135,11 +135,16 @@ for(var i=0; i<sections.length; i++) {
   // for section 4, only keep the first subsection
   if (section.id === "semantics") {
     var newSection = $('<section></section>');
-    var h2 = section.node.children().first();
-    var s = section.node.children().get(1);
-    newSection.append(h2);
-    newSection.append(s);
-    section.node = newSection;
+    var h2 = section.node.children().get(1);
+
+    // s is the first subsection
+    var s = section.node.children().get(2);
+
+    if (h2 && s) {
+      newSection.append(h2);
+      newSection.append(s);
+      section.node = newSection;
+    }
   }
   // Serialize to string to avoid uncollectable jQuery object graphs when mixed into another
   // document later. See https://github.com/w3c/html/issues/833
